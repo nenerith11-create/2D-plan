@@ -75,7 +75,8 @@ const RD = {
 /* =========================================================================
    State
    ========================================================================= */
-let state = { rooms: [], items: [] };
+let state = { rooms: [], items: [], ref: null };  // ref = uploaded floor plan underlay
+let refEl = null;                                 // decoded <img> for state.ref
 let idSeq = 1;
 const uid = () => 'e' + (idSeq++);
 
@@ -676,6 +677,12 @@ function drawWorld(c, mode) {
   for (const r of state.rooms) drawFloor(c, r, mode);
   if (mode === 'render') drawSunlight(c);
   drawWalls(c, mode);
+  if (mode === 'blueprint' && state.ref && refEl && refEl.complete) {
+    c.save();
+    c.globalAlpha = state.ref.opacity;              // traceable underlay above floors, below furniture
+    c.drawImage(refEl, state.ref.x, state.ref.y, state.ref.w, state.ref.w * refEl.height / refEl.width);
+    c.restore();
+  }
   const sorted = [...state.items].sort((a, b) => (TYPES[a.type]?.z ?? 2) - (TYPES[b.type]?.z ?? 2));
   for (const it of sorted) if (TYPES[it.type]?.wall) drawItem(c, it, mode);
   for (const it of sorted) if (!TYPES[it.type]?.wall) drawItem(c, it, mode);
@@ -806,6 +813,10 @@ canvas.addEventListener('pointerdown', e => {
     drag = { kind: 'divider' };
     return;
   }
+  if (e.shiftKey && state.ref && viewMode !== 'render') {
+    drag = { kind: 'ref', ox: wpt.x - state.ref.x, oy: wpt.y - state.ref.y, moved: false };
+    return;
+  }
   const it = hitItem(wpt.x, wpt.y);
   if (it) {
     sel = { kind: 'item', id: it.id };
@@ -844,6 +855,8 @@ canvas.addEventListener('pointermove', e => {
   } else if (drag.kind === 'room') {
     const r = getById(state.rooms, drag.id);
     if (r) { r.x = snap(wpt.x - drag.ox); r.y = snap(wpt.y - drag.oy); drag.moved = true; }
+  } else if (drag.kind === 'ref') {
+    if (state.ref) { state.ref.x = snap(wpt.x - drag.ox); state.ref.y = snap(wpt.y - drag.oy); drag.moved = true; }
   }
   requestDraw();
 });
@@ -1085,22 +1098,90 @@ function addFromPalette(type) {
 /* =========================================================================
    Toolbar
    ========================================================================= */
+function setViewMode(mode) {
+  viewMode = mode;
+  for (const b of document.querySelectorAll('.view-switch button')) b.classList.toggle('active', b.dataset.mode === mode);
+  requestDraw();
+}
 for (const btn of document.querySelectorAll('.view-switch button')) {
-  btn.addEventListener('click', () => {
-    viewMode = btn.dataset.mode;
-    for (const b of document.querySelectorAll('.view-switch button')) b.classList.toggle('active', b === btn);
-    requestDraw();
-  });
+  btn.addEventListener('click', () => setViewMode(btn.dataset.mode));
 }
 
+/* ---------- reference image (uploaded floor plan to trace over) ---------- */
+const refPanel = document.getElementById('refpanel');
+const fileInput = document.getElementById('fileInput');
+
+function setRefImage(src) {
+  refEl = new Image();
+  refEl.onload = requestDraw;
+  refEl.src = src;
+}
+
+function syncRefPanel() {
+  if (!state.ref) { refPanel.classList.add('hidden'); return; }
+  refPanel.classList.remove('hidden');
+  document.getElementById('refOpacity').value = Math.round(state.ref.opacity * 100);
+  document.getElementById('refSize').value = state.ref.w;
+}
+
+function clearRefImage() {
+  state.ref = null;
+  refEl = null;
+  syncRefPanel();
+}
+
+document.getElementById('btnUpload').addEventListener('click', () => fileInput.click());
+fileInput.addEventListener('change', () => {
+  const file = fileInput.files && fileInput.files[0];
+  fileInput.value = '';
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    const img = new Image();
+    img.onload = () => {
+      // downscale so the stored data URL fits comfortably in localStorage
+      const k = Math.min(1, 1600 / Math.max(img.width, img.height));
+      const cn = document.createElement('canvas');
+      cn.width = Math.max(1, Math.round(img.width * k));
+      cn.height = Math.max(1, Math.round(img.height * k));
+      cn.getContext('2d').drawImage(img, 0, 0, cn.width, cn.height);
+      const src = cn.toDataURL('image/jpeg', 0.82);
+      const wcm = 900;                                       // initial width, resizable via slider
+      const hcm = wcm * cn.height / cn.width;
+      state.ref = {
+        src, w: wcm, opacity: 0.6,
+        x: snap(view.x + cw / view.scale / 2 - wcm / 2),
+        y: snap(view.y + ch / view.scale / 2 - hcm / 2),
+      };
+      setRefImage(src);
+      if (viewMode === 'render') setViewMode('blueprint');   // the underlay only shows in blueprint
+      syncRefPanel(); saveState(); requestDraw();
+    };
+    img.src = reader.result;
+  };
+  reader.readAsDataURL(file);
+});
+
+document.getElementById('refOpacity').addEventListener('input', e => {
+  if (state.ref) { state.ref.opacity = +e.target.value / 100; saveState(); requestDraw(); }
+});
+document.getElementById('refSize').addEventListener('input', e => {
+  if (state.ref) { state.ref.w = +e.target.value; saveState(); requestDraw(); }
+});
+document.getElementById('refRemove').addEventListener('click', () => {
+  clearRefImage(); saveState(); requestDraw();
+});
+
 document.getElementById('btnFit').addEventListener('click', () => { fitView(); requestDraw(); });
-document.getElementById('btnDemo').addEventListener('click', () => { loadDemo(); fitView(); changed(); });
+document.getElementById('btnDemo').addEventListener('click', () => { loadDemo(); syncRefPanel(); fitView(); changed(); });
 document.getElementById('btnClear').addEventListener('click', () => {
   if (state.rooms.length || state.items.length) {
     if (!confirm('Start a new empty plan? The current plan will be discarded.')) return;
   }
-  state = { rooms: [], items: [] };
+  state = { rooms: [], items: [], ref: null };
+  refEl = null;
   sel = null;
+  syncRefPanel();
   fitView();
   changed();
 });
@@ -1139,7 +1220,7 @@ function loadState() {
     if (!raw) return false;
     const data = JSON.parse(raw);
     if (!Array.isArray(data.rooms) || !Array.isArray(data.items)) return false;
-    state = { rooms: data.rooms, items: data.items };
+    state = { rooms: data.rooms, items: data.items, ref: data.ref || null };
     idSeq = data.idSeq || 1000;
     return true;
   } catch (_) { return false; }
@@ -1219,6 +1300,8 @@ function loadDemo() {
       I('window', 540, 960),
     ],
   };
+  state.ref = null;
+  refEl = null;
   sel = null;
 }
 
@@ -1239,6 +1322,8 @@ window.addEventListener('resize', resize);
 
 buildPalette();
 if (!loadState()) loadDemo();
+if (state.ref) setRefImage(state.ref.src);
+syncRefPanel();
 resize();
 fitView();
 requestDraw();
