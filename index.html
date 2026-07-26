@@ -46,7 +46,15 @@
       <input type="range" id="refOpacity" min="10" max="100" value="60">
       <label for="refSize">Size</label>
       <input type="range" id="refSize" min="200" max="2000" value="900">
-      <p><b>Shift-drag</b> the canvas to position it.<br>Shown in the Blueprint view — trace rooms and furniture over it, then switch to Rendered.</p>
+      <p><b>Shift-drag</b> the canvas to position it.<br>Trace rooms and furniture over it — or let AI do it:</p>
+      <button id="btnAuto" class="auto-btn">✨ Auto-remodel</button>
+      <div id="autoKeyRow" class="hidden">
+        <label for="autoKey">Claude API key</label>
+        <input type="password" id="autoKey" placeholder="sk-ant-...">
+        <button id="autoKeySave">Save &amp; run</button>
+        <p>Stored only in this browser and sent only to api.anthropic.com. Get a key at platform.claude.com.</p>
+      </div>
+      <p id="autoStatus"></p>
     </div>
   </div>
 

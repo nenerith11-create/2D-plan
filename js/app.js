@@ -1186,6 +1186,170 @@ window.addEventListener('paste', e => {
   }
 });
 
+/* ---------- Auto-remodel: Claude analyzes the uploaded plan and builds the layout ---------- */
+const API_KEY_STORE = 'remodel-studio-api-key';
+const autoStatus = document.getElementById('autoStatus');
+const autoKeyRow = document.getElementById('autoKeyRow');
+const btnAuto = document.getElementById('btnAuto');
+
+function setAutoStatus(msg, cls) {
+  autoStatus.textContent = msg || '';
+  autoStatus.className = cls || '';
+}
+
+function layoutSchema() {
+  const num = { type: 'number' };
+  return {
+    type: 'object',
+    additionalProperties: false,
+    required: ['rooms', 'items'],
+    properties: {
+      rooms: {
+        type: 'array',
+        items: {
+          type: 'object',
+          additionalProperties: false,
+          required: ['x', 'y', 'w', 'h', 'name', 'floor'],
+          properties: {
+            x: num, y: num, w: num, h: num,
+            name: { type: 'string' },
+            floor: { type: 'string', enum: Object.keys(FLOOR_MATS) },
+          },
+        },
+      },
+      items: {
+        type: 'array',
+        items: {
+          type: 'object',
+          additionalProperties: false,
+          required: ['type', 'x', 'y', 'rot', 'w', 'h'],
+          properties: {
+            type: { type: 'string', enum: Object.keys(TYPES) },
+            x: num, y: num, rot: num, w: num, h: num,
+          },
+        },
+      },
+    },
+  };
+}
+
+function layoutPrompt() {
+  const catalog = Object.entries(TYPES)
+    .map(([k, d]) => `${k} (${d.label}, default ${d.w}x${d.h}cm)`)
+    .join('; ');
+  return [
+    'Analyze this 2D floor plan image and reconstruct it as structured layout data for a floor plan editor.',
+    '',
+    'Coordinate system: centimeters, origin at top-left, x grows right, y grows down. Estimate realistic dimensions from the image (a door is ~80-90cm wide; whole apartments are typically 500-1200cm per side).',
+    '',
+    'Rooms are rectangles with x,y at the top-left corner. They should tile the apartment with adjacent rooms sharing edges; walls are drawn automatically along each rectangle edge. Give each room a short name and a sensible floor material (tile or marble for bathrooms/kitchens, wood/oak/herringbone for living spaces).',
+    '',
+    'Items have x,y at their CENTER and rot in degrees clockwise (prefer 0, 90, 180, 270). At rot 0 an item faces down the +y axis with its back at -y (bed headboard, sofa back, chair back at the top edge).',
+    'door, window, and opening items must be centered exactly ON a room edge line: rot 0 on horizontal walls, 90 on vertical walls. Include the entrance door, interior doors, and windows on exterior walls.',
+    'Place every piece of furniture visible in the plan using the closest catalog type, sized via w/h to match the image. If the plan shows no furniture, furnish it sensibly based on the room labels.',
+    '',
+    `Item catalog: ${catalog}.`,
+    `Floor materials: ${Object.entries(FLOOR_MATS).map(([k, d]) => `${k} (${d.label})`).join(', ')}.`,
+  ].join('\n');
+}
+
+function applyLayout(layout) {
+  const rooms = (layout.rooms || []).slice(0, 40).map(r => ({
+    id: uid(),
+    x: snap(+r.x || 0), y: snap(+r.y || 0),
+    w: clamp(Math.round(+r.w || 300), 60, 3000),
+    h: clamp(Math.round(+r.h || 300), 60, 3000),
+    name: String(r.name || 'Room').slice(0, 24),
+    floor: FLOOR_MATS[r.floor] ? r.floor : 'wood',
+  }));
+  const items = (layout.items || []).slice(0, 200).filter(it => TYPES[it.type]).map(it => ({
+    id: uid(),
+    type: it.type,
+    x: snap(+it.x || 0), y: snap(+it.y || 0),
+    rot: ((Math.round(+it.rot || 0) % 360) + 360) % 360,
+    w: clamp(Math.round(+it.w || TYPES[it.type].w), 10, 3000),
+    h: clamp(Math.round(+it.h || TYPES[it.type].h), 10, 3000),
+  }));
+  if (!rooms.length) throw new Error('No rooms were recognized in this image. Try a clearer floor plan.');
+  state.rooms = rooms;
+  state.items = items;
+  if (state.ref) state.ref.opacity = 0.25;   // fade the underlay so the traced result reads clearly
+  sel = null;
+  syncProps(); syncRefPanel();
+  setViewMode('compare');
+  fitView();
+  saveState(); requestDraw();
+}
+
+async function autoRemodel() {
+  if (!state.ref) return;
+  const key = (localStorage.getItem(API_KEY_STORE) || '').trim();
+  if (!key) {
+    autoKeyRow.classList.remove('hidden');
+    setAutoStatus('Enter your Claude API key to run Auto-remodel.');
+    return;
+  }
+  btnAuto.disabled = true;
+  setAutoStatus('Analyzing your floor plan with Claude… this can take a minute.');
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        'x-api-key': key,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true',
+      },
+      body: JSON.stringify({
+        model: 'claude-opus-5',
+        max_tokens: 16000,
+        output_config: { format: { type: 'json_schema', schema: layoutSchema() } },
+        messages: [{
+          role: 'user',
+          content: [
+            { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: state.ref.src.split(',')[1] } },
+            { type: 'text', text: layoutPrompt() },
+          ],
+        }],
+      }),
+    });
+    if (res.status === 401) {
+      localStorage.removeItem(API_KEY_STORE);
+      autoKeyRow.classList.remove('hidden');
+      throw new Error('That API key was rejected — please enter it again.');
+    }
+    if (!res.ok) {
+      const err = await res.json().catch(() => null);
+      throw new Error((err && err.error && err.error.message) || `API error ${res.status}`);
+    }
+    const data = await res.json();
+    if (data.stop_reason === 'refusal') {
+      throw new Error('The model declined this request. Try a different floor plan image.');
+    }
+    const textBlock = (data.content || []).find(b => b.type === 'text');
+    if (!textBlock || !textBlock.text) throw new Error('No layout was returned — please try again.');
+    applyLayout(JSON.parse(textBlock.text));
+    setAutoStatus('Done! Your plan is traced and rendered — drag the divider to compare.', 'ok');
+  } catch (e) {
+    if (e instanceof TypeError) {
+      setAutoStatus('Network blocked in this preview — Auto-remodel works on the public site or when running the app locally.', 'error');
+    } else {
+      setAutoStatus(e.message || 'Something went wrong — please try again.', 'error');
+    }
+  } finally {
+    btnAuto.disabled = false;
+  }
+}
+
+btnAuto.addEventListener('click', autoRemodel);
+document.getElementById('autoKeySave').addEventListener('click', () => {
+  const val = document.getElementById('autoKey').value.trim();
+  if (!val) return;
+  try { localStorage.setItem(API_KEY_STORE, val); } catch (_) { /* private mode */ }
+  autoKeyRow.classList.add('hidden');
+  autoRemodel();
+});
+
 document.getElementById('refOpacity').addEventListener('input', e => {
   if (state.ref) { state.ref.opacity = +e.target.value / 100; saveState(); requestDraw(); }
 });
