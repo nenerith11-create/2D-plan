@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Remodel Studio — 2D Floor Plan Designer</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🏠</text></svg>">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<header id="topbar">
+  <div class="brand">
+    <span class="logo">🏠</span>
+    <div class="brand-text">
+      <h1>Remodel Studio</h1>
+      <p>Transform your floor plan today</p>
+    </div>
+  </div>
+
+  <div class="view-switch" role="group" aria-label="View mode">
+    <button id="btnBlueprint" data-mode="blueprint">Blueprint</button>
+    <button id="btnCompare" data-mode="compare" class="active">Compare</button>
+    <button id="btnRender" data-mode="render">Rendered</button>
+  </div>
+
+  <div class="actions">
+    <button id="btnDemo" title="Load the demo apartment">Demo</button>
+    <button id="btnClear" title="Start an empty plan">New</button>
+    <button id="btnFit" title="Fit plan to screen">Fit</button>
+    <button id="btnExport" class="primary" title="Download the current view as a PNG">Export PNG</button>
+  </div>
+</header>
+
+<main>
+  <aside id="palette" aria-label="Furniture palette"></aside>
+
+  <div id="canvas-wrap">
+    <canvas id="canvas"></canvas>
+  </div>
+
+  <aside id="props" class="hidden" aria-label="Properties">
+    <h2 id="propTitle">Properties</h2>
+
+    <div class="field" id="fieldName">
+      <label for="propName">Name</label>
+      <input type="text" id="propName" maxlength="24">
+    </div>
+
+    <div class="field" id="fieldFloor">
+      <label for="propFloor">Floor</label>
+      <select id="propFloor"></select>
+    </div>
+
+    <div class="field-row">
+      <div class="field">
+        <label for="propW">Width (cm)</label>
+        <input type="number" id="propW" min="10" max="2000" step="5">
+      </div>
+      <div class="field">
+        <label for="propH">Depth (cm)</label>
+        <input type="number" id="propH" min="10" max="2000" step="5">
+      </div>
+    </div>
+
+    <div class="field" id="fieldRot">
+      <label for="propRot">Rotation (°)</label>
+      <div class="rot-row">
+        <input type="number" id="propRot" step="15">
+        <button id="btnRotate" title="Rotate 90° (R)">⟳ 90°</button>
+      </div>
+    </div>
+
+    <div class="btn-row">
+      <button id="btnDuplicate">Duplicate</button>
+      <button id="btnDelete" class="danger">Delete</button>
+    </div>
+  </aside>
+</main>
+
+<footer id="hints">
+  <span><b>Click</b> palette to add</span>
+  <span><b>Drag</b> to move</span>
+  <span><b>R</b> rotate</span>
+  <span><b>Del</b> remove</span>
+  <span><b>Arrows</b> nudge</span>
+  <span><b>Scroll</b> zoom</span>
+  <span><b>Drag empty space</b> pan</span>
+  <span class="compare-hint"><b>Drag the divider</b> to compare</span>
+</footer>
+
+<script src="js/app.js"></script>
+</body>
+</html>
