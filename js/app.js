@@ -1189,6 +1189,7 @@ window.addEventListener('paste', e => {
 /* ---------- Auto-remodel: Claude analyzes the uploaded plan and builds the layout ---------- */
 const API_KEY_STORE = 'remodel-studio-api-key';
 const API_BASE_STORE = 'remodel-studio-api-base';
+const API_AUTH_STORE = 'remodel-studio-api-auth';   // 'x-api-key' | 'bearer'
 const DEFAULT_API_BASE = 'https://api.anthropic.com';
 const autoStatus = document.getElementById('autoStatus');
 const autoKeyRow = document.getElementById('autoKeyRow');
@@ -1197,6 +1198,20 @@ const btnAuto = document.getElementById('btnAuto');
 function apiBase() {
   const stored = (localStorage.getItem(API_BASE_STORE) || '').trim();
   return (stored || DEFAULT_API_BASE).replace(/\/+$/, '');
+}
+
+/* Accepts a plain base (…/v1/messages appended), a base ending in /v1
+   (only /messages appended), or a full endpoint ending in /messages (as-is) —
+   so gateway URLs with their own path structure work unchanged. */
+function apiEndpoint() {
+  const base = apiBase();
+  if (/\/messages$/i.test(base)) return base;
+  if (/\/v\d+$/i.test(base)) return base + '/messages';
+  return base + '/v1/messages';
+}
+
+function apiAuthStyle() {
+  return localStorage.getItem(API_AUTH_STORE) === 'bearer' ? 'bearer' : 'x-api-key';
 }
 
 function setAutoStatus(msg, cls) {
@@ -1306,8 +1321,11 @@ async function autoRemodel() {
       'anthropic-version': '2023-06-01',
       'anthropic-dangerous-direct-browser-access': 'true',
     };
-    if (key) headers['x-api-key'] = key;
-    const res = await fetch(base + '/v1/messages', {
+    if (key) {
+      if (apiAuthStyle() === 'bearer') headers['authorization'] = 'Bearer ' + key;
+      else headers['x-api-key'] = key;
+    }
+    const res = await fetch(apiEndpoint(), {
       method: 'POST',
       headers,
       body: JSON.stringify({
@@ -1358,11 +1376,13 @@ document.getElementById('autoSettings').addEventListener('click', e => {
   if (!autoKeyRow.classList.contains('hidden')) {
     document.getElementById('autoKey').value = localStorage.getItem(API_KEY_STORE) || '';
     document.getElementById('autoBase').value = localStorage.getItem(API_BASE_STORE) || '';
+    document.getElementById('autoAuth').value = apiAuthStyle();
   }
 });
 document.getElementById('autoKeySave').addEventListener('click', () => {
   const key = document.getElementById('autoKey').value.trim();
   const baseVal = document.getElementById('autoBase').value.trim().replace(/\/+$/, '');
+  const auth = document.getElementById('autoAuth').value;
   if (baseVal && !/^https?:\/\//.test(baseVal)) {
     setAutoStatus('The base URL must start with https:// (or http:// for local proxies).', 'error');
     return;
@@ -1370,6 +1390,7 @@ document.getElementById('autoKeySave').addEventListener('click', () => {
   try {
     if (key) localStorage.setItem(API_KEY_STORE, key); else localStorage.removeItem(API_KEY_STORE);
     if (baseVal) localStorage.setItem(API_BASE_STORE, baseVal); else localStorage.removeItem(API_BASE_STORE);
+    localStorage.setItem(API_AUTH_STORE, auth);
   } catch (_) { /* private mode */ }
   autoKeyRow.classList.add('hidden');
   autoRemodel();

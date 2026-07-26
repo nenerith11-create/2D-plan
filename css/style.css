@@ -181,7 +181,8 @@ main { flex: 1; display: flex; min-height: 0; }
 }
 #autoSettings:hover { color: var(--text); }
 #autoKeyRow.hidden { display: none; }
-#autoKeyRow input {
+#autoKeyRow input,
+#autoKeyRow select {
   width: 100%;
   margin-top: 3px;
   background: var(--panel-2);
