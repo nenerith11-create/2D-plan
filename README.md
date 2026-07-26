@@ -44,6 +44,20 @@ python3 -m http.server 8000
 
 It also works out of the box on GitHub Pages.
 
+### Docker
+
+```bash
+docker compose up -d
+# then visit http://localhost:8080
+```
+
+The container serves the app with nginx and mounts the source files read-only,
+so edits show up on refresh without rebuilding. It also includes a
+**same-origin proxy to the Claude API** at `/anthropic/` — in the app, open
+**⚙ API settings** and set the base URL to `http://localhost:8080/anthropic`
+to route Auto-remodel through your own server. Because the request is
+same-origin, there is no CORS involved and ad blockers have nothing to block.
+
 ## Controls
 
 | Action | How |
