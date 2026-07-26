@@ -10,31 +10,47 @@
 
 const WALL = 14; // wall thickness, cm
 
-const FLOORS = { wood: 'Wood', tile: 'Tile', stone: 'Stone' };
+/* Floor materials a room can be finished with */
+const FLOOR_MATS = {
+  wood:        { label: 'Light Oak' },
+  oak:         { label: 'Dark Oak' },
+  herringbone: { label: 'Herringbone' },
+  tile:        { label: 'Aqua Tile' },
+  marble:      { label: 'Marble' },
+  stone:       { label: 'Stone' },
+  concrete:    { label: 'Concrete' },
+};
 
-/* Catalog: default size (cm), palette category, draw order z, wall = sits on walls */
+/* Material color options offered per furniture family */
+const MAT_SWATCHES = {
+  fabric: ['#b7a284', '#d6cdbc', '#a8a8a8', '#a3b08e', '#bf7d5e', '#6b7d94'],
+  wood:   ['#b08d62', '#8a6f52', '#74573c', '#d9d2c4', '#4b453d'],
+};
+
+/* Catalog: default size (cm), palette category, draw order z, wall = sits on walls,
+   mat/color = which material family the piece belongs to and its default color */
 const TYPES = {
   door:        { label: 'Door',         w: 90,  h: 12, cat: 'Structure', z: 1, wall: true },
   opening:     { label: 'Opening',      w: 140, h: 12, cat: 'Structure', z: 1, wall: true },
   window:      { label: 'Window',       w: 140, h: 12, cat: 'Structure', z: 1, wall: true },
-  sofa:        { label: 'Sofa',         w: 220, h: 95, cat: 'Living', z: 2 },
-  armchair:    { label: 'Armchair',     w: 90,  h: 88, cat: 'Living', z: 2 },
-  coffeeTable: { label: 'Coffee table', w: 110, h: 60, cat: 'Living', z: 3 },
-  tvstand:     { label: 'TV stand',     w: 160, h: 42, cat: 'Living', z: 2 },
-  rug:         { label: 'Rug',          w: 230, h: 160, cat: 'Living', z: 1 },
+  sofa:        { label: 'Sofa',         w: 220, h: 95, cat: 'Living', z: 2, mat: 'fabric', color: '#b7a284' },
+  armchair:    { label: 'Armchair',     w: 90,  h: 88, cat: 'Living', z: 2, mat: 'fabric', color: '#b7a284' },
+  coffeeTable: { label: 'Coffee table', w: 110, h: 60, cat: 'Living', z: 3, mat: 'wood', color: '#b08d62' },
+  tvstand:     { label: 'TV stand',     w: 160, h: 42, cat: 'Living', z: 2, mat: 'wood', color: '#8a6f52' },
+  rug:         { label: 'Rug',          w: 230, h: 160, cat: 'Living', z: 1, mat: 'fabric', color: '#c3cfba' },
   plant:       { label: 'Plant',        w: 50,  h: 50, cat: 'Living', z: 3 },
-  bookshelf:   { label: 'Bookshelf',    w: 120, h: 35, cat: 'Living', z: 2 },
-  bedDouble:   { label: 'Double bed',   w: 180, h: 210, cat: 'Bedroom', z: 2 },
-  bedSingle:   { label: 'Single bed',   w: 100, h: 200, cat: 'Bedroom', z: 2 },
-  wardrobe:    { label: 'Wardrobe',     w: 180, h: 62, cat: 'Bedroom', z: 2 },
-  nightstand:  { label: 'Nightstand',   w: 46,  h: 40, cat: 'Bedroom', z: 2 },
-  desk:        { label: 'Desk',         w: 140, h: 60, cat: 'Bedroom', z: 2 },
+  bookshelf:   { label: 'Bookshelf',    w: 120, h: 35, cat: 'Living', z: 2, mat: 'wood', color: '#8a6f52' },
+  bedDouble:   { label: 'Double bed',   w: 180, h: 210, cat: 'Bedroom', z: 2, mat: 'fabric', color: '#d8ccb6' },
+  bedSingle:   { label: 'Single bed',   w: 100, h: 200, cat: 'Bedroom', z: 2, mat: 'fabric', color: '#d8ccb6' },
+  wardrobe:    { label: 'Wardrobe',     w: 180, h: 62, cat: 'Bedroom', z: 2, mat: 'wood', color: '#ab967b' },
+  nightstand:  { label: 'Nightstand',   w: 46,  h: 40, cat: 'Bedroom', z: 2, mat: 'wood', color: '#b08d62' },
+  desk:        { label: 'Desk',         w: 140, h: 60, cat: 'Bedroom', z: 2, mat: 'wood', color: '#b08d62' },
   counter:     { label: 'Counter',      w: 240, h: 62, cat: 'Kitchen & Dining', z: 2 },
   stove:       { label: 'Stove',        w: 62,  h: 62, cat: 'Kitchen & Dining', z: 3 },
   sinkK:       { label: 'Kitchen sink', w: 62,  h: 62, cat: 'Kitchen & Dining', z: 3 },
   fridge:      { label: 'Fridge',       w: 70,  h: 72, cat: 'Kitchen & Dining', z: 2 },
-  diningTable: { label: 'Dining table', w: 160, h: 95, cat: 'Kitchen & Dining', z: 2 },
-  chair:       { label: 'Chair',        w: 46,  h: 48, cat: 'Kitchen & Dining', z: 2 },
+  diningTable: { label: 'Dining table', w: 160, h: 95, cat: 'Kitchen & Dining', z: 2, mat: 'wood', color: '#b08d62' },
+  chair:       { label: 'Chair',        w: 46,  h: 48, cat: 'Kitchen & Dining', z: 2, mat: 'fabric', color: '#c4b291' },
   toilet:      { label: 'Toilet',       w: 42,  h: 66, cat: 'Bathroom', z: 2 },
   sinkB:       { label: 'Washbasin',    w: 56,  h: 46, cat: 'Bathroom', z: 2 },
   shower:      { label: 'Shower',       w: 95,  h: 95, cat: 'Bathroom', z: 1 },
@@ -86,6 +102,17 @@ function rnd(a, b = 0) {
   return s - Math.floor(s);
 }
 
+/* color mixing for material shading */
+function mix(a, b, t) {
+  const pa = parseInt(a.slice(1), 16), pb = parseInt(b.slice(1), 16);
+  const r = Math.round(((pa >> 16) & 255) * (1 - t) + ((pb >> 16) & 255) * t);
+  const g = Math.round(((pa >> 8) & 255) * (1 - t) + ((pb >> 8) & 255) * t);
+  const bl = Math.round((pa & 255) * (1 - t) + (pb & 255) * t);
+  return '#' + ((1 << 24) | (r << 16) | (g << 8) | bl).toString(16).slice(1);
+}
+const tintC = (c, t) => mix(c, '#ffffff', t);
+const darkC = (c, t) => mix(c, '#000000', t);
+
 function rr(c, x, y, w, h, r) {
   r = Math.min(r, w / 2, h / 2);
   c.beginPath();
@@ -126,6 +153,7 @@ function drawItem(c, it, mode) {
   c.translate(it.x, it.y);
   c.rotate(rad(it.rot || 0));
   const w = it.w, h = it.h, hw = w / 2, hh = h / 2;
+  const col = it.color || TYPES[it.type]?.color || '#b08d62';   // chosen material color
 
   if (bp) { c.strokeStyle = BP.line; c.lineWidth = 2.2; c.fillStyle = 'transparent'; }
   else { c.strokeStyle = RD.outline; c.lineWidth = 1.6; }
@@ -146,30 +174,30 @@ function drawItem(c, it, mode) {
 
   switch (it.type) {
     case 'sofa': {
-      shadow(true); rr(c, -hw, -hh, w, h, 16); paint(lg(0, -hh, 0, hh, '#c6b092', '#a68f6e'));
-      rr(c, -hw + 4, -hh + 4, w - 8, 24, 10); paint(lg(0, -hh + 4, 0, -hh + 28, '#8d785b', '#a08a69'));  // back rest
-      rr(c, -hw + 4, -hh + 4, 19, h - 8, 9); paint(lg(-hw + 4, 0, -hw + 23, 0, '#937e60', '#a89272'));   // arms
-      rr(c, hw - 23, -hh + 4, 19, h - 8, 9); paint(lg(hw - 23, 0, hw - 4, 0, '#a89272', '#937e60'));
+      shadow(true); rr(c, -hw, -hh, w, h, 16); paint(lg(0, -hh, 0, hh, tintC(col, 0.12), darkC(col, 0.1)));
+      rr(c, -hw + 4, -hh + 4, w - 8, 24, 10); paint(lg(0, -hh + 4, 0, -hh + 28, darkC(col, 0.28), darkC(col, 0.12))); // back rest
+      rr(c, -hw + 4, -hh + 4, 19, h - 8, 9); paint(lg(-hw + 4, 0, -hw + 23, 0, darkC(col, 0.22), darkC(col, 0.05))); // arms
+      rr(c, hw - 23, -hh + 4, 19, h - 8, 9); paint(lg(hw - 23, 0, hw - 4, 0, darkC(col, 0.05), darkC(col, 0.22)));
       const sw = (w - 54) / 2;
-      rr(c, -hw + 25, -hh + 30, sw, h - 36, 9); paint(lg(0, -hh + 30, 0, hh - 6, '#d8cab2', '#c1b195')); // seat cushions
-      rr(c, -hw + 29 + sw, -hh + 30, sw, h - 36, 9); paint(lg(0, -hh + 30, 0, hh - 6, '#d8cab2', '#c1b195'));
+      rr(c, -hw + 25, -hh + 30, sw, h - 36, 9); paint(lg(0, -hh + 30, 0, hh - 6, tintC(col, 0.38), tintC(col, 0.12))); // seat cushions
+      rr(c, -hw + 29 + sw, -hh + 30, sw, h - 36, 9); paint(lg(0, -hh + 30, 0, hh - 6, tintC(col, 0.38), tintC(col, 0.12)));
       if (!bp) { // back pillows, slightly tilted
-        c.save(); c.translate(-w * 0.22, -hh + 20); c.rotate(-0.06); rr(c, -26, -11, 52, 22, 9); paint('#e3d6bd'); c.restore();
-        c.save(); c.translate(w * 0.22, -hh + 20); c.rotate(0.07); rr(c, -26, -11, 52, 22, 9); paint('#cbb691'); c.restore();
+        c.save(); c.translate(-w * 0.22, -hh + 20); c.rotate(-0.06); rr(c, -26, -11, 52, 22, 9); paint(tintC(col, 0.5)); c.restore();
+        c.save(); c.translate(w * 0.22, -hh + 20); c.rotate(0.07); rr(c, -26, -11, 52, 22, 9); paint(darkC(col, 0.08)); c.restore();
       }
       break;
     }
     case 'armchair': {
-      shadow(true); rr(c, -hw, -hh, w, h, 15); paint(lg(0, -hh, 0, hh, '#c6b092', '#a68f6e'));
-      rr(c, -hw + 4, -hh + 4, w - 8, 19, 8); paint(lg(0, -hh + 4, 0, -hh + 23, '#8d785b', '#a08a69'));
-      rr(c, -hw + 4, -hh + 4, 15, h - 8, 8); paint('#978263');
-      rr(c, hw - 19, -hh + 4, 15, h - 8, 8); paint('#978263');
-      rr(c, -hw + 20, -hh + 24, w - 40, h - 30, 8); paint(lg(0, -hh + 24, 0, hh - 6, '#dccfb8', '#c3b398'));
-      if (!bp) { c.save(); c.rotate(0.15); rr(c, -19, -14, 38, 30, 8); paint('#b7a17c'); c.restore(); }   // throw pillow
+      shadow(true); rr(c, -hw, -hh, w, h, 15); paint(lg(0, -hh, 0, hh, tintC(col, 0.12), darkC(col, 0.1)));
+      rr(c, -hw + 4, -hh + 4, w - 8, 19, 8); paint(lg(0, -hh + 4, 0, -hh + 23, darkC(col, 0.28), darkC(col, 0.12)));
+      rr(c, -hw + 4, -hh + 4, 15, h - 8, 8); paint(darkC(col, 0.18));
+      rr(c, hw - 19, -hh + 4, 15, h - 8, 8); paint(darkC(col, 0.18));
+      rr(c, -hw + 20, -hh + 24, w - 40, h - 30, 8); paint(lg(0, -hh + 24, 0, hh - 6, tintC(col, 0.4), tintC(col, 0.15)));
+      if (!bp) { c.save(); c.rotate(0.15); rr(c, -19, -14, 38, 30, 8); paint(darkC(col, 0.12)); c.restore(); }        // throw pillow
       break;
     }
     case 'coffeeTable': {
-      shadow(true); rr(c, -hw, -hh, w, h, 12); paint(lg(-hw, -hh, hw, hh, '#b5926a', '#9d7c55'));
+      shadow(true); rr(c, -hw, -hh, w, h, 12); paint(lg(-hw, -hh, hw, hh, tintC(col, 0.06), darkC(col, 0.14)));
       if (bp) { rr(c, -hw + 7, -hh + 7, w - 14, h - 14, 8); c.stroke(); break; }
       c.strokeStyle = 'rgba(70,45,20,0.18)'; c.beginPath();                                              // wood grain
       for (let i = 1; i < 4; i++) { const y = -hh + h * i / 4; c.moveTo(-hw + 8, y); c.lineTo(hw - 8, y); }
@@ -181,7 +209,7 @@ function drawItem(c, it, mode) {
       break;
     }
     case 'tvstand': {
-      shadow(true); rr(c, -hw, -hh, w, h, 6); paint(lg(0, -hh, 0, hh, '#95795a', '#7e6448'));
+      shadow(true); rr(c, -hw, -hh, w, h, 6); paint(lg(0, -hh, 0, hh, tintC(col, 0.08), darkC(col, 0.12)));
       if (!bp) {
         c.beginPath(); c.moveTo(-w / 6, -hh + 3); c.lineTo(-w / 6, hh - 3);                              // door seams
         c.moveTo(w / 6, -hh + 3); c.lineTo(w / 6, hh - 3); c.stroke();
@@ -195,16 +223,16 @@ function drawItem(c, it, mode) {
     }
     case 'rug': {
       c.setLineDash(bp ? [9, 7] : []);
-      rr(c, -hw, -hh, w, h, 20); paint(lg(-hw, -hh, hw, hh, '#cfd8c6', '#b8c4ae'));
+      rr(c, -hw, -hh, w, h, 20); paint(lg(-hw, -hh, hw, hh, tintC(col, 0.08), darkC(col, 0.08)));
       c.setLineDash([]);
       if (bp) break;
       rr(c, -hw + 9, -hh + 9, w - 18, h - 18, 14);
       c.strokeStyle = 'rgba(255,255,255,0.55)'; c.lineWidth = 3; c.stroke();                             // border band
       c.save();
       rr(c, -hw + 14, -hh + 14, w - 28, h - 28, 10); c.clip();
-      c.lineWidth = 1.2; c.strokeStyle = 'rgba(90,105,80,0.22)'; c.beginPath();                          // woven lattice
+      c.lineWidth = 1.2; c.strokeStyle = darkC(col, 0.45); c.globalAlpha = 0.25; c.beginPath();          // woven lattice
       for (let x = -hw - h; x < hw; x += 22) { c.moveTo(x, -hh); c.lineTo(x + h, hh); }
-      c.stroke();
+      c.stroke(); c.globalAlpha = 1;
       c.restore();
       c.lineWidth = 1.6; c.strokeStyle = RD.outline;
       break;
@@ -231,7 +259,7 @@ function drawItem(c, it, mode) {
       break;
     }
     case 'bookshelf': {
-      shadow(true); rr(c, -hw, -hh, w, h, 4); paint(lg(0, -hh, 0, hh, '#96795a', '#7d6247'));
+      shadow(true); rr(c, -hw, -hh, w, h, 4); paint(lg(0, -hh, 0, hh, tintC(col, 0.08), darkC(col, 0.14)));
       c.beginPath();
       for (let i = 1; i < 4; i++) { const x = -hw + w * i / 4; c.moveTo(x, -hh + 3); c.lineTo(x, hh - 3); }
       c.stroke();
@@ -257,11 +285,12 @@ function drawItem(c, it, mode) {
       c.lineTo(hw - 6, hh - 14); c.quadraticCurveTo(hw - 6, hh - 6, hw - 14, hh - 6);
       c.lineTo(-hw + 14, hh - 6); c.quadraticCurveTo(-hw + 6, hh - 6, -hw + 6, hh - 14);
       c.closePath();
-      c.fillStyle = lg(0, duvetY, 0, hh, '#ece3d2', '#cfc2a8'); c.fill(); c.stroke();
-      c.strokeStyle = 'rgba(120,100,70,0.25)'; c.beginPath();                                            // fold crease
+      c.fillStyle = lg(0, duvetY, 0, hh, tintC(col, 0.4), col); c.fill(); c.stroke();
+      c.strokeStyle = darkC(col, 0.5); c.globalAlpha = 0.35; c.beginPath();                              // fold crease
       c.moveTo(-hw + 12, duvetY + 26); c.bezierCurveTo(-w * 0.15, duvetY + 18, w * 0.1, duvetY + 34, hw - 12, duvetY + 24);
-      c.stroke(); c.strokeStyle = RD.outline;
-      rr(c, -hw + 6, hh - 46, w - 12, 26, 6); paint(lg(0, hh - 46, 0, hh - 20, '#b98a6b', '#a5765a'));   // throw blanket
+      c.stroke(); c.globalAlpha = 1; c.strokeStyle = RD.outline;
+      const th = it.color ? darkC(col, 0.22) : '#b08060';                                                // throw blanket
+      rr(c, -hw + 6, hh - 46, w - 12, 26, 6); paint(lg(0, hh - 46, 0, hh - 20, tintC(th, 0.08), darkC(th, 0.12)));
       const pw = single ? w - 40 : (w - 48) / 2;                                                         // pillows
       const px = single ? [-hw + 18] : [-hw + 18, -hw + 30 + pw];
       for (let i = 0; i < px.length; i++) {
@@ -273,20 +302,20 @@ function drawItem(c, it, mode) {
       break;
     }
     case 'wardrobe': {
-      shadow(true); rr(c, -hw, -hh, w, h, 4); paint(lg(0, -hh, 0, hh, '#b6a186', '#9c8669'));
+      shadow(true); rr(c, -hw, -hh, w, h, 4); paint(lg(0, -hh, 0, hh, tintC(col, 0.08), darkC(col, 0.12)));
       c.beginPath(); c.moveTo(0, -hh + 4); c.lineTo(0, hh - 4); c.stroke();                              // door seam
       if (bp) {
         c.beginPath();
         for (let x = -hw + 20; x < hw - 12; x += 24) { c.moveTo(x, -8); c.lineTo(x, 8); }
         c.stroke();
       } else {
-        c.fillStyle = '#6e5a42';
+        c.fillStyle = darkC(col, 0.45);
         for (const dx of [-7, 7]) { c.beginPath(); c.arc(dx, 0, 2.5, 0, 7); c.fill(); }                  // handles
       }
       break;
     }
     case 'nightstand': {
-      shadow(true); rr(c, -hw, -hh, w, h, 6); paint(lg(-hw, -hh, hw, hh, '#b5926a', '#9a7852'));
+      shadow(true); rr(c, -hw, -hh, w, h, 6); paint(lg(-hw, -hh, hw, hh, tintC(col, 0.05), darkC(col, 0.15)));
       if (bp) { c.beginPath(); c.arc(0, 0, 4, 0, 7); c.stroke(); break; }
       c.beginPath(); c.arc(0, 0, Math.min(hw, hh) * 0.55, 0, 7);
       c.fillStyle = 'rgba(255,244,200,0.5)'; c.fill();                                                   // lamp glow
@@ -294,7 +323,7 @@ function drawItem(c, it, mode) {
       break;
     }
     case 'desk': {
-      shadow(true); rr(c, -hw, -hh, w, h, 6); paint(lg(0, -hh, 0, hh, '#b5926a', '#9d7c55'));
+      shadow(true); rr(c, -hw, -hh, w, h, 6); paint(lg(0, -hh, 0, hh, tintC(col, 0.05), darkC(col, 0.13)));
       rr(c, -hw + 12, -hh + 10, 42, h - 20, 4); paint('#d9d2c2');                                        // desk pad
       if (!bp) {
         rr(c, 8, -13, 40, 26, 3); paint(lg(8, 0, 48, 0, '#3c4046', '#23262b'));                          // laptop
@@ -353,7 +382,7 @@ function drawItem(c, it, mode) {
       break;
     }
     case 'diningTable': {
-      shadow(true); rr(c, -hw, -hh, w, h, 14); paint(lg(-hw, -hh, hw, hh, '#b5926a', '#997752'));
+      shadow(true); rr(c, -hw, -hh, w, h, 14); paint(lg(-hw, -hh, hw, hh, tintC(col, 0.05), darkC(col, 0.15)));
       if (bp) { rr(c, -20, -12, 40, 24, 8); c.stroke(); break; }
       c.strokeStyle = 'rgba(70,45,20,0.15)'; c.beginPath();                                              // wood grain
       for (let i = 1; i < 5; i++) { const x = -hw + w * i / 5; c.moveTo(x, -hh + 6); c.lineTo(x, hh - 6); }
@@ -364,7 +393,7 @@ function drawItem(c, it, mode) {
       break;
     }
     case 'chair': {
-      shadow(true); rr(c, -hw, -hh + 10, w, h - 10, 9); paint(lg(0, -hh + 10, 0, hh, '#d3c4a8', '#b7a482'));
+      shadow(true); rr(c, -hw, -hh + 10, w, h - 10, 9); paint(lg(0, -hh + 10, 0, hh, tintC(col, 0.25), col));
       rr(c, -hw, -hh, w, 12, 5); paint(lg(0, -hh, 0, -hh + 12, '#8a6f50', '#75593c'));
       break;
     }
@@ -485,7 +514,8 @@ function drawFloor(c, room, mode) {
   c.save();
   c.beginPath(); c.rect(room.x, room.y, room.w, room.h); c.clip();
 
-  if (room.floor === 'tile') {
+  const f = FLOOR_MATS[room.floor] ? room.floor : 'wood';
+  if (f === 'tile') {
     c.fillStyle = '#b9d6d2'; c.fillRect(room.x, room.y, room.w, room.h);         // grout
     const s = 30;
     for (let y = room.y, j = 0; y < room.y + room.h; y += s, j++)
@@ -493,7 +523,21 @@ function drawFloor(c, room, mode) {
         c.fillStyle = `hsl(172, 28%, ${80 + (rnd(i, j) - 0.5) * 6}%)`;
         c.fillRect(x, y, s - 1.5, s - 1.5);
       }
-  } else if (room.floor === 'stone') {
+  } else if (f === 'marble') {
+    c.fillStyle = '#cfc9bd'; c.fillRect(room.x, room.y, room.w, room.h);         // grout
+    const s = 60;
+    for (let y = room.y, j = 0; y < room.y + room.h; y += s, j++)
+      for (let x = room.x, i = 0; x < room.x + room.w; x += s, i++) {
+        c.fillStyle = `hsl(40, 14%, ${88 + (rnd(i, j + 70) - 0.5) * 4}%)`;
+        c.fillRect(x, y, s - 1.5, s - 1.5);
+        if (rnd(i + 3, j + 11) > 0.5) {                                          // faint veins
+          c.strokeStyle = 'rgba(125,118,105,0.3)'; c.lineWidth = 1;
+          c.beginPath(); c.moveTo(x + rnd(i, j) * s, y + 2);
+          c.bezierCurveTo(x + s * 0.6, y + s * 0.3, x + s * 0.2, y + s * 0.7, x + rnd(j, i) * s, y + s - 2);
+          c.stroke();
+        }
+      }
+  } else if (f === 'stone') {
     c.fillStyle = '#c8c0ae'; c.fillRect(room.x, room.y, room.w, room.h);
     const s = 45;
     for (let y = room.y, j = 0; y < room.y + room.h; y += s, j++)                // running-bond stone
@@ -501,14 +545,42 @@ function drawFloor(c, room, mode) {
         c.fillStyle = `hsl(40, 18%, ${82 + (rnd(i, j + 50) - 0.5) * 7}%)`;
         c.fillRect(x, y, s - 1.5, s - 1.5);
       }
+  } else if (f === 'concrete') {
+    c.fillStyle = '#b4afa6'; c.fillRect(room.x, room.y, room.w, room.h);
+    const s = 70;
+    for (let y = room.y, j = 0; y < room.y + room.h; y += s, j++)                // soft blotches
+      for (let x = room.x, i = 0; x < room.x + room.w; x += s, i++) {
+        c.fillStyle = `hsl(42, 7%, ${70 + (rnd(i, j + 33) - 0.5) * 5}%)`;
+        c.fillRect(x, y, s, s);
+      }
+    c.strokeStyle = 'rgba(80,75,65,0.14)'; c.lineWidth = 1.2; c.beginPath();     // control joints
+    for (let x = room.x + 140; x < room.x + room.w; x += 140) { c.moveTo(x, room.y); c.lineTo(x, room.y + room.h); }
+    for (let y = room.y + 140; y < room.y + room.h; y += 140) { c.moveTo(room.x, y); c.lineTo(room.x + room.w, y); }
+    c.stroke();
+  } else if (f === 'herringbone') {
+    c.fillStyle = '#9c7f57'; c.fillRect(room.x, room.y, room.w, room.h);
+    const s = 34;
+    for (let y = room.y - s, j = 0; y < room.y + room.h + s; y += s, j++)        // zigzag planks
+      for (let x = room.x - s, i = 0; x < room.x + room.w + s; x += s, i++) {
+        c.save();
+        c.translate(x + s / 2, y + s / 2);
+        c.rotate(((i + j) % 2 ? 45 : -45) * Math.PI / 180);
+        c.fillStyle = `hsl(30, 40%, ${58 + (rnd(i, j + 5) - 0.5) * 12}%)`;
+        c.fillRect(-s * 0.68, -s * 0.17, s * 1.36, s * 0.34);
+        c.restore();
+      }
   } else {
-    c.fillStyle = '#b6935f'; c.fillRect(room.x, room.y, room.w, room.h);         // plank gaps
+    const dark = f === 'oak';
+    c.fillStyle = dark ? '#4a3826' : '#b6935f';                                  // plank gaps
+    c.fillRect(room.x, room.y, room.w, room.h);
     const rh = 19;
     for (let y = room.y, j = 0; y < room.y + room.h; y += rh, j++) {             // staggered planks
       let x = room.x - rnd(j, 3) * 90, i = 0;
       while (x < room.x + room.w) {
         const len = 95 + rnd(i, j) * 70;
-        c.fillStyle = `hsl(33, 42%, ${64 + (rnd(i + 7, j) - 0.5) * 12}%)`;
+        c.fillStyle = dark
+          ? `hsl(26, 38%, ${38 + (rnd(i + 7, j) - 0.5) * 10}%)`
+          : `hsl(33, 42%, ${64 + (rnd(i + 7, j) - 0.5) * 12}%)`;
         c.fillRect(x + 1, y + 1, len - 2, rh - 2);
         x += len; i++;
       }
@@ -832,18 +904,49 @@ function changed() { syncProps(); saveState(); requestDraw(); }
 const props = document.getElementById('props');
 const propTitle = document.getElementById('propTitle');
 const propName = document.getElementById('propName');
-const propFloor = document.getElementById('propFloor');
 const propW = document.getElementById('propW');
 const propH = document.getElementById('propH');
 const propRot = document.getElementById('propRot');
 const fieldName = document.getElementById('fieldName');
 const fieldFloor = document.getElementById('fieldFloor');
+const fieldColor = document.getElementById('fieldColor');
 const fieldRot = document.getElementById('fieldRot');
+const floorSwatches = document.getElementById('floorSwatches');
+const colorSwatches = document.getElementById('colorSwatches');
 
-for (const [k, v] of Object.entries(FLOORS)) {
-  const opt = document.createElement('option');
-  opt.value = k; opt.textContent = v;
-  propFloor.appendChild(opt);
+/* floor material picker — each swatch is a live render of the material */
+for (const [k, def] of Object.entries(FLOOR_MATS)) {
+  const b = document.createElement('button');
+  b.className = 'swatch'; b.title = def.label; b.dataset.mat = k;
+  const cnv = document.createElement('canvas');
+  cnv.width = 72; cnv.height = 54;
+  const sc = cnv.getContext('2d');
+  sc.scale(0.6, 0.6);
+  drawFloor(sc, { x: 0, y: 0, w: 120, h: 90, floor: k }, 'render');
+  b.appendChild(cnv);
+  b.addEventListener('click', () => {
+    const o = selectedObj();
+    if (o && sel.kind === 'room') { o.floor = k; changed(); }
+  });
+  floorSwatches.appendChild(b);
+}
+
+/* furniture color picker — options depend on the piece's material family */
+function buildColorSwatches(o, isRoom) {
+  colorSwatches.innerHTML = '';
+  const matKind = isRoom ? null : TYPES[o.type]?.mat;
+  if (!matKind) { fieldColor.style.display = 'none'; return; }
+  fieldColor.style.display = '';
+  const cur = (o.color || TYPES[o.type].color).toLowerCase();
+  for (const colr of MAT_SWATCHES[matKind]) {
+    const b = document.createElement('button');
+    b.className = 'swatch round';
+    b.style.background = colr;
+    b.title = matKind === 'wood' ? 'Wood tone' : 'Fabric color';
+    if (colr.toLowerCase() === cur) b.classList.add('sel');
+    b.addEventListener('click', () => { o.color = colr; changed(); });
+    colorSwatches.appendChild(b);
+  }
 }
 
 let syncing = false;
@@ -857,8 +960,14 @@ function syncProps() {
   fieldName.style.display = isRoom ? '' : 'none';
   fieldFloor.style.display = isRoom ? '' : 'none';
   fieldRot.style.display = isRoom ? 'none' : '';
-  if (isRoom) { propName.value = o.name || ''; propFloor.value = o.floor || 'wood'; }
-  else propRot.value = o.rot || 0;
+  if (isRoom) {
+    propName.value = o.name || '';
+    const cur = FLOOR_MATS[o.floor] ? o.floor : 'wood';
+    for (const b of floorSwatches.children) b.classList.toggle('sel', b.dataset.mat === cur);
+  } else {
+    propRot.value = o.rot || 0;
+  }
+  buildColorSwatches(o, isRoom);
   propW.value = o.w; propH.value = o.h;
   syncing = false;
 }
@@ -871,13 +980,12 @@ function applyProps() {
   o.h = clamp(+propH.value || o.h, 10, 3000);
   if (sel.kind === 'room') {
     o.name = propName.value;
-    o.floor = propFloor.value;
   } else {
     o.rot = ((+propRot.value || 0) % 360 + 360) % 360;
   }
   saveState(); requestDraw();
 }
-for (const el of [propName, propFloor, propW, propH, propRot]) el.addEventListener('input', applyProps);
+for (const el of [propName, propW, propH, propRot]) el.addEventListener('input', applyProps);
 
 document.getElementById('btnRotate').addEventListener('click', () => {
   const o = selectedObj();
@@ -1049,11 +1157,11 @@ function loadDemo() {
     rooms: [
       R(0, 0, 360, 290, 'Bedroom', 'wood'),
       R(360, 0, 280, 230, 'Bathroom', 'tile'),
-      R(0, 290, 380, 340, 'Living Room', 'wood'),
-      R(380, 230, 260, 400, 'Kitchen', 'stone'),
+      R(0, 290, 380, 340, 'Living Room', 'herringbone'),
+      R(380, 230, 260, 400, 'Kitchen', 'marble'),
       R(0, 630, 250, 330, 'Entry Hall', 'stone'),
       R(250, 630, 190, 330, 'Laundry', 'tile'),
-      R(440, 630, 200, 330, 'Storage', 'wood'),
+      R(440, 630, 200, 330, 'Storage', 'concrete'),
     ],
     items: [
       // Bedroom
@@ -1068,7 +1176,7 @@ function loadDemo() {
       I('sinkB', 392, 140, 270),
       // Living room
       I('sofa', 70, 430, 270),
-      I('armchair', 160, 562, 320),
+      { ...I('armchair', 160, 562, 320), color: '#bf7d5e' },
       I('coffeeTable', 195, 435, 90),
       I('rug', 210, 450, 90),
       I('tvstand', 352, 430, 270),

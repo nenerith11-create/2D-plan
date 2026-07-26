@@ -10,8 +10,11 @@ furnished, **rendered** top-down view — or drag a divider to compare both at o
   - **Blueprint** — white line-work on dark, like a hand-drawn architectural plan
   - **Rendered** — furnished top-down render with wood floors, tiles and soft shadows
   - **Compare** — split screen with a draggable before/after divider
-- **Room editor** — add rooms, rename them, pick a floor material (wood / tile / stone);
+- **Room editor** — add rooms, rename them, and pick a floor material from live-rendered
+  swatches (light oak, dark oak, herringbone, aqua tile, marble, stone, concrete);
   room area is computed and shown automatically
+- **Furniture materials** — recolor upholstered pieces (sofas, beds, rugs, chairs) with
+  fabric swatches and wooden pieces (tables, wardrobes, shelves) with wood tones
 - **25+ furniture pieces** — sofas, beds, wardrobes, kitchen counters, appliances,
   bathroom fixtures, doors, windows, and more, each drawn in both styles
 - **Full editing** — drag to move, rotate (R or the ⟳ button), resize, duplicate, delete,
