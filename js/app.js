@@ -1360,7 +1360,14 @@ async function autoRemodel() {
     setAutoStatus('Done! Your plan is traced and rendered — drag the divider to compare.', 'ok');
   } catch (e) {
     if (e instanceof TypeError) {
-      setAutoStatus('Network blocked in this preview — Auto-remodel works on the public site or when running the app locally.', 'error');
+      let host = 'the API endpoint';
+      try { host = new URL(apiEndpoint()).host; } catch (_) { /* keep generic */ }
+      setAutoStatus(
+        `The browser blocked the request to ${host} before it was sent. Usual causes: ` +
+        'an ad blocker or Brave Shields (allow this site and retry), a VPN or firewall, ' +
+        'or a gateway that does not accept browser (CORS) requests. ' +
+        'In the claude.ai preview all network access is blocked by design — use the public site instead.',
+        'error');
     } else {
       setAutoStatus(e.message || 'Something went wrong — please try again.', 'error');
     }
