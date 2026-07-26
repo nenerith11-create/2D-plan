@@ -171,6 +171,15 @@ main { flex: 1; display: flex; min-height: 0; }
   cursor: pointer;
 }
 #refpanel .auto-btn:disabled { opacity: 0.55; cursor: wait; }
+#autoSettings {
+  display: block;
+  margin-top: 5px;
+  font-size: 10.5px;
+  color: var(--text-dim);
+  text-decoration: none;
+  text-align: right;
+}
+#autoSettings:hover { color: var(--text); }
 #autoKeyRow.hidden { display: none; }
 #autoKeyRow input {
   width: 100%;

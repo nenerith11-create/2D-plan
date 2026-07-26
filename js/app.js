@@ -1188,9 +1188,16 @@ window.addEventListener('paste', e => {
 
 /* ---------- Auto-remodel: Claude analyzes the uploaded plan and builds the layout ---------- */
 const API_KEY_STORE = 'remodel-studio-api-key';
+const API_BASE_STORE = 'remodel-studio-api-base';
+const DEFAULT_API_BASE = 'https://api.anthropic.com';
 const autoStatus = document.getElementById('autoStatus');
 const autoKeyRow = document.getElementById('autoKeyRow');
 const btnAuto = document.getElementById('btnAuto');
+
+function apiBase() {
+  const stored = (localStorage.getItem(API_BASE_STORE) || '').trim();
+  return (stored || DEFAULT_API_BASE).replace(/\/+$/, '');
+}
 
 function setAutoStatus(msg, cls) {
   autoStatus.textContent = msg || '';
@@ -1284,22 +1291,25 @@ function applyLayout(layout) {
 async function autoRemodel() {
   if (!state.ref) return;
   const key = (localStorage.getItem(API_KEY_STORE) || '').trim();
-  if (!key) {
+  const base = apiBase();
+  // A key is required for the official API; a custom proxy may inject its own.
+  if (!key && base === DEFAULT_API_BASE) {
     autoKeyRow.classList.remove('hidden');
-    setAutoStatus('Enter your Claude API key to run Auto-remodel.');
+    setAutoStatus('Enter your Claude API key (or a proxy base URL) to run Auto-remodel.');
     return;
   }
   btnAuto.disabled = true;
   setAutoStatus('Analyzing your floor plan with Claude… this can take a minute.');
   try {
-    const res = await fetch('https://api.anthropic.com/v1/messages', {
+    const headers = {
+      'content-type': 'application/json',
+      'anthropic-version': '2023-06-01',
+      'anthropic-dangerous-direct-browser-access': 'true',
+    };
+    if (key) headers['x-api-key'] = key;
+    const res = await fetch(base + '/v1/messages', {
       method: 'POST',
-      headers: {
-        'content-type': 'application/json',
-        'x-api-key': key,
-        'anthropic-version': '2023-06-01',
-        'anthropic-dangerous-direct-browser-access': 'true',
-      },
+      headers,
       body: JSON.stringify({
         model: 'claude-opus-5',
         max_tokens: 16000,
@@ -1342,10 +1352,25 @@ async function autoRemodel() {
 }
 
 btnAuto.addEventListener('click', autoRemodel);
+document.getElementById('autoSettings').addEventListener('click', e => {
+  e.preventDefault();
+  autoKeyRow.classList.toggle('hidden');
+  if (!autoKeyRow.classList.contains('hidden')) {
+    document.getElementById('autoKey').value = localStorage.getItem(API_KEY_STORE) || '';
+    document.getElementById('autoBase').value = localStorage.getItem(API_BASE_STORE) || '';
+  }
+});
 document.getElementById('autoKeySave').addEventListener('click', () => {
-  const val = document.getElementById('autoKey').value.trim();
-  if (!val) return;
-  try { localStorage.setItem(API_KEY_STORE, val); } catch (_) { /* private mode */ }
+  const key = document.getElementById('autoKey').value.trim();
+  const baseVal = document.getElementById('autoBase').value.trim().replace(/\/+$/, '');
+  if (baseVal && !/^https?:\/\//.test(baseVal)) {
+    setAutoStatus('The base URL must start with https:// (or http:// for local proxies).', 'error');
+    return;
+  }
+  try {
+    if (key) localStorage.setItem(API_KEY_STORE, key); else localStorage.removeItem(API_KEY_STORE);
+    if (baseVal) localStorage.setItem(API_BASE_STORE, baseVal); else localStorage.removeItem(API_BASE_STORE);
+  } catch (_) { /* private mode */ }
   autoKeyRow.classList.add('hidden');
   autoRemodel();
 });

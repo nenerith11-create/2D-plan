@@ -48,11 +48,14 @@
       <input type="range" id="refSize" min="200" max="2000" value="900">
       <p><b>Shift-drag</b> the canvas to position it.<br>Trace rooms and furniture over it — or let AI do it:</p>
       <button id="btnAuto" class="auto-btn">✨ Auto-remodel</button>
+      <a id="autoSettings" href="#">⚙ API settings</a>
       <div id="autoKeyRow" class="hidden">
         <label for="autoKey">Claude API key</label>
         <input type="password" id="autoKey" placeholder="sk-ant-...">
+        <label for="autoBase">API base URL (optional)</label>
+        <input type="url" id="autoBase" placeholder="https://api.anthropic.com">
         <button id="autoKeySave">Save &amp; run</button>
-        <p>Stored only in this browser and sent only to api.anthropic.com. Get a key at platform.claude.com.</p>
+        <p>Stored only in this browser and sent only to the API endpoint above. Leave the base URL empty for api.anthropic.com, or point it at your own proxy/gateway (the key is optional if your proxy injects it).</p>
       </div>
       <p id="autoStatus"></p>
     </div>
