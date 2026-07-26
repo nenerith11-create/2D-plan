@@ -15,6 +15,12 @@ furnished, **rendered** top-down view — or drag a divider to compare both at o
   room area is computed and shown automatically
 - **Furniture materials** — recolor upholstered pieces (sofas, beds, rugs, chairs) with
   fabric swatches and wooden pieces (tables, wardrobes, shelves) with wood tones
+- **Upload & trace** — load a photo or scan of your floor plan as a reference underlay
+  (button, drag-and-drop, or paste) and trace rooms and furniture over it
+- **✨ Auto-remodel** — one click sends your uploaded plan to the Claude API
+  (`claude-opus-5`), which reconstructs the rooms, doors, windows, and furniture as an
+  editable layout. Requires your own Claude API key (stored only in your browser,
+  sent only to api.anthropic.com)
 - **25+ furniture pieces** — sofas, beds, wardrobes, kitchen counters, appliances,
   bathroom fixtures, doors, windows, and more, each drawn in both styles
 - **Full editing** — drag to move, rotate (R or the ⟳ button), resize, duplicate, delete,
