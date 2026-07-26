@@ -45,10 +45,8 @@ const TYPES = {
 /* ---------- palettes ---------- */
 const BP = { bg: '#14161c', floor: '#191c24', wall: '#e8ecf5', line: '#dfe6f2', label: '#aeb8cc', grid: 'rgba(160,175,205,0.07)' };
 const RD = {
-  bg: '#e7e2d9', wallFill: '#f8f5ee', wallEdge: '#a9a294',
-  wood: '#d6bd97', woodLine: 'rgba(120,90,55,0.18)',
-  tile: '#c8e2e0', tileLine: 'rgba(255,255,255,0.55)',
-  stone: '#ddd7cb', stoneLine: 'rgba(120,110,95,0.15)',
+  bg: '#eae3d7', wallFill: '#faf7f0', wallEdge: '#9b9384',
+  wood: '#d3b489',
   label: 'rgba(80,70,55,0.75)',
   fabric: '#b9a488', fabricLight: '#d0c2ac', fabricDark: '#a5906f',
   wood1: '#b08d62', wood2: '#8f7355',
@@ -82,6 +80,12 @@ const rad = d => d * Math.PI / 180;
 const snap = v => Math.round(v / 5) * 5;
 const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
 
+/* deterministic pseudo-random in [0,1) — stable across frames, no flicker */
+function rnd(a, b = 0) {
+  const s = Math.sin(a * 127.1 + b * 311.7 + 74.7) * 43758.5453;
+  return s - Math.floor(s);
+}
+
 function rr(c, x, y, w, h, r) {
   r = Math.min(r, w / 2, h / 2);
   c.beginPath();
@@ -114,7 +118,7 @@ function planBounds() {
 
 /* =========================================================================
    Furniture drawing — every shape is drawn centred on the origin.
-   mode 'bp' = blueprint line-work, 'rd' = rendered fills.
+   'blueprint' = line-work, 'render' = realistic fills with gradients.
    ========================================================================= */
 function drawItem(c, it, mode) {
   const bp = mode === 'blueprint';
@@ -126,145 +130,257 @@ function drawItem(c, it, mode) {
   if (bp) { c.strokeStyle = BP.line; c.lineWidth = 2.2; c.fillStyle = 'transparent'; }
   else { c.strokeStyle = RD.outline; c.lineWidth = 1.6; }
 
-  // Soft shadow under solid furniture in rendered mode
+  // linear gradient helper (only meaningful in rendered mode)
+  const lg = (x0, y0, x1, y1, c0, c1) => {
+    const g = c.createLinearGradient(x0, y0, x1, y1);
+    g.addColorStop(0, c0); g.addColorStop(1, c1);
+    return g;
+  };
+
+  // Soft contact shadow under solid furniture in rendered mode
   const shadow = on => {
-    if (!bp && on) { c.shadowColor = 'rgba(50,40,25,0.25)'; c.shadowBlur = 9; c.shadowOffsetY = 3; }
+    if (!bp && on) { c.shadowColor = 'rgba(50,40,25,0.3)'; c.shadowBlur = 12; c.shadowOffsetY = 4; }
     else { c.shadowColor = 'transparent'; c.shadowBlur = 0; c.shadowOffsetY = 0; }
   };
   const paint = fill => { if (bp) c.stroke(); else { c.fillStyle = fill; c.fill(); shadow(false); c.stroke(); } };
 
   switch (it.type) {
     case 'sofa': {
-      shadow(true); rr(c, -hw, -hh, w, h, 14); paint(RD.fabric);
-      rr(c, -hw + 5, -hh + 5, w - 10, 22, 9); paint(RD.fabricDark);          // back rest
-      rr(c, -hw + 5, -hh + 5, 20, h - 10, 9); paint(RD.fabricDark);          // arms
-      rr(c, hw - 25, -hh + 5, 20, h - 10, 9); paint(RD.fabricDark);
-      const sw = (w - 56) / 2;
-      rr(c, -hw + 26, -hh + 28, sw, h - 34, 8); paint(RD.fabricLight);       // seat cushions
-      rr(c, -hw + 28 + sw, -hh + 28, sw, h - 34, 8); paint(RD.fabricLight);
+      shadow(true); rr(c, -hw, -hh, w, h, 16); paint(lg(0, -hh, 0, hh, '#c6b092', '#a68f6e'));
+      rr(c, -hw + 4, -hh + 4, w - 8, 24, 10); paint(lg(0, -hh + 4, 0, -hh + 28, '#8d785b', '#a08a69'));  // back rest
+      rr(c, -hw + 4, -hh + 4, 19, h - 8, 9); paint(lg(-hw + 4, 0, -hw + 23, 0, '#937e60', '#a89272'));   // arms
+      rr(c, hw - 23, -hh + 4, 19, h - 8, 9); paint(lg(hw - 23, 0, hw - 4, 0, '#a89272', '#937e60'));
+      const sw = (w - 54) / 2;
+      rr(c, -hw + 25, -hh + 30, sw, h - 36, 9); paint(lg(0, -hh + 30, 0, hh - 6, '#d8cab2', '#c1b195')); // seat cushions
+      rr(c, -hw + 29 + sw, -hh + 30, sw, h - 36, 9); paint(lg(0, -hh + 30, 0, hh - 6, '#d8cab2', '#c1b195'));
+      if (!bp) { // back pillows, slightly tilted
+        c.save(); c.translate(-w * 0.22, -hh + 20); c.rotate(-0.06); rr(c, -26, -11, 52, 22, 9); paint('#e3d6bd'); c.restore();
+        c.save(); c.translate(w * 0.22, -hh + 20); c.rotate(0.07); rr(c, -26, -11, 52, 22, 9); paint('#cbb691'); c.restore();
+      }
       break;
     }
     case 'armchair': {
-      shadow(true); rr(c, -hw, -hh, w, h, 14); paint(RD.fabric);
-      rr(c, -hw + 4, -hh + 4, w - 8, 18, 8); paint(RD.fabricDark);
-      rr(c, -hw + 4, -hh + 4, 15, h - 8, 8); paint(RD.fabricDark);
-      rr(c, hw - 19, -hh + 4, 15, h - 8, 8); paint(RD.fabricDark);
-      rr(c, -hw + 20, -hh + 23, w - 40, h - 28, 7); paint(RD.fabricLight);
+      shadow(true); rr(c, -hw, -hh, w, h, 15); paint(lg(0, -hh, 0, hh, '#c6b092', '#a68f6e'));
+      rr(c, -hw + 4, -hh + 4, w - 8, 19, 8); paint(lg(0, -hh + 4, 0, -hh + 23, '#8d785b', '#a08a69'));
+      rr(c, -hw + 4, -hh + 4, 15, h - 8, 8); paint('#978263');
+      rr(c, hw - 19, -hh + 4, 15, h - 8, 8); paint('#978263');
+      rr(c, -hw + 20, -hh + 24, w - 40, h - 30, 8); paint(lg(0, -hh + 24, 0, hh - 6, '#dccfb8', '#c3b398'));
+      if (!bp) { c.save(); c.rotate(0.15); rr(c, -19, -14, 38, 30, 8); paint('#b7a17c'); c.restore(); }   // throw pillow
       break;
     }
     case 'coffeeTable': {
-      shadow(true); rr(c, -hw, -hh, w, h, 12); paint(RD.wood1);
-      rr(c, -hw + 7, -hh + 7, w - 14, h - 14, 8); if (bp) c.stroke(); else { c.strokeStyle = 'rgba(255,255,255,0.25)'; c.stroke(); c.strokeStyle = RD.outline; }
+      shadow(true); rr(c, -hw, -hh, w, h, 12); paint(lg(-hw, -hh, hw, hh, '#b5926a', '#9d7c55'));
+      if (bp) { rr(c, -hw + 7, -hh + 7, w - 14, h - 14, 8); c.stroke(); break; }
+      c.strokeStyle = 'rgba(70,45,20,0.18)'; c.beginPath();                                              // wood grain
+      for (let i = 1; i < 4; i++) { const y = -hh + h * i / 4; c.moveTo(-hw + 8, y); c.lineTo(hw - 8, y); }
+      c.stroke(); c.strokeStyle = RD.outline;
+      rr(c, -hw + 14, -13, 34, 26, 3); paint('#ddd3c0');                                                 // stacked books
+      rr(c, -hw + 17, -10, 34, 26, 3); paint('#b0674f');
+      c.beginPath(); c.arc(hw - 26, 0, 9, 0, 7); paint('#f2ede2');                                       // coffee cup
+      c.beginPath(); c.arc(hw - 26, 0, 4.5, 0, 7); paint('#6b4a35');
       break;
     }
     case 'tvstand': {
-      shadow(true); rr(c, -hw, -hh, w, h, 6); paint(RD.wood2);
-      rr(c, -hw + 12, -hh - 4, w - 24, 8, 2); paint('#2b2e33');              // TV panel on front edge
+      shadow(true); rr(c, -hw, -hh, w, h, 6); paint(lg(0, -hh, 0, hh, '#95795a', '#7e6448'));
+      if (!bp) {
+        c.beginPath(); c.moveTo(-w / 6, -hh + 3); c.lineTo(-w / 6, hh - 3);                              // door seams
+        c.moveTo(w / 6, -hh + 3); c.lineTo(w / 6, hh - 3); c.stroke();
+      }
+      rr(c, -hw + 14, -hh - 5, w - 28, 9, 2); paint(lg(-hw, 0, hw, 0, '#3a3e45', '#181a1e'));            // TV panel
+      if (!bp) {
+        c.beginPath(); c.moveTo(-hw + 18, -hh - 3); c.lineTo(-hw + 44, -hh - 3);                         // screen glint
+        c.strokeStyle = 'rgba(255,255,255,0.35)'; c.stroke(); c.strokeStyle = RD.outline;
+      }
       break;
     }
     case 'rug': {
       c.setLineDash(bp ? [9, 7] : []);
-      rr(c, -hw, -hh, w, h, 18); paint(RD.textile);
+      rr(c, -hw, -hh, w, h, 20); paint(lg(-hw, -hh, hw, hh, '#cfd8c6', '#b8c4ae'));
       c.setLineDash([]);
-      if (!bp) { rr(c, -hw + 10, -hh + 10, w - 20, h - 20, 12); c.strokeStyle = 'rgba(255,255,255,0.45)'; c.stroke(); }
+      if (bp) break;
+      rr(c, -hw + 9, -hh + 9, w - 18, h - 18, 14);
+      c.strokeStyle = 'rgba(255,255,255,0.55)'; c.lineWidth = 3; c.stroke();                             // border band
+      c.save();
+      rr(c, -hw + 14, -hh + 14, w - 28, h - 28, 10); c.clip();
+      c.lineWidth = 1.2; c.strokeStyle = 'rgba(90,105,80,0.22)'; c.beginPath();                          // woven lattice
+      for (let x = -hw - h; x < hw; x += 22) { c.moveTo(x, -hh); c.lineTo(x + h, hh); }
+      c.stroke();
+      c.restore();
+      c.lineWidth = 1.6; c.strokeStyle = RD.outline;
       break;
     }
     case 'plant': {
       const r = Math.min(hw, hh);
-      shadow(true); c.beginPath(); c.arc(0, 0, r, 0, 7); paint('#b9a08a');   // pot
-      if (!bp) {
-        for (let i = 0; i < 6; i++) {
-          const a = i * Math.PI / 3;
-          c.beginPath(); c.arc(Math.cos(a) * r * 0.45, Math.sin(a) * r * 0.45, r * 0.42, 0, 7);
-          c.fillStyle = i % 2 ? RD.green : RD.greenDark; c.fill();
-        }
-        c.beginPath(); c.arc(0, 0, r * 0.3, 0, 7); c.fillStyle = RD.green; c.fill();
-      } else {
+      if (bp) {
+        c.beginPath(); c.arc(0, 0, r, 0, 7); c.stroke();
         c.beginPath(); c.arc(0, 0, r * 0.55, 0, 7); c.stroke();
+        break;
       }
+      shadow(true); c.beginPath(); c.arc(0, 0, r * 0.8, 0, 7); paint('#a56b4c');                         // terracotta pot
+      c.beginPath(); c.arc(0, 0, r * 0.66, 0, 7); paint('#8a5137');
+      for (let i = 0; i < 9; i++) {                                                                      // leaves
+        const a = i * 0.698 + rnd(i, it.x) * 0.5;
+        const lr = r * (0.55 + rnd(i, 9) * 0.45);
+        c.save(); c.rotate(a); c.translate(lr * 0.55, 0);
+        c.beginPath(); c.ellipse(0, 0, lr * 0.62, lr * 0.24, 0, 0, 7);
+        c.fillStyle = `hsl(${95 + rnd(i, 2) * 30}, 34%, ${28 + rnd(i, 5) * 16}%)`; c.fill();
+        c.restore();
+      }
+      c.beginPath(); c.arc(r * 0.15, -r * 0.15, r * 0.2, 0, 7);
+      c.fillStyle = 'rgba(255,255,255,0.18)'; c.fill();                                                  // top light
       break;
     }
     case 'bookshelf': {
-      shadow(true); rr(c, -hw, -hh, w, h, 4); paint(RD.wood2);
+      shadow(true); rr(c, -hw, -hh, w, h, 4); paint(lg(0, -hh, 0, hh, '#96795a', '#7d6247'));
       c.beginPath();
       for (let i = 1; i < 4; i++) { const x = -hw + w * i / 4; c.moveTo(x, -hh + 3); c.lineTo(x, hh - 3); }
       c.stroke();
       break;
     }
     case 'bedDouble': case 'bedSingle': {
-      shadow(true); rr(c, -hw, -hh, w, h, 10); paint('#c9b596');             // frame
-      rr(c, -hw + 6, -hh + 6, w - 12, h - 12, 8); paint('#efe9dd');          // mattress
+      shadow(true); rr(c, -hw, -hh, w, h, 10); paint(lg(0, -hh, 0, hh, '#c2a67f', '#a98c65'));           // frame
+      rr(c, -hw + 6, -hh + 6, w - 12, h - 12, 8); paint('#f1ece1');                                      // mattress
       const single = it.type === 'bedSingle';
-      const pw = single ? w - 32 : (w - 36) / 2;
-      rr(c, -hw + 14, -hh + 14, pw, 30, 8); paint(RD.white);                 // pillows
-      if (!single) rr(c, -hw + 22 + pw, -hh + 14, pw, 30, 8); paint(RD.white);
-      rr(c, -hw + 6, -hh + 58, w - 12, h - 64, 8); paint('#cfc4b0');         // blanket
-      c.beginPath(); c.moveTo(-hw + 6, -hh + 74); c.lineTo(hw - 6, -hh + 74); c.stroke();
+      const duvetY = -hh + 62;
+      if (bp) {
+        const pw = single ? w - 32 : (w - 36) / 2;
+        rr(c, -hw + 14, -hh + 14, pw, 30, 8); c.stroke();
+        if (!single) { rr(c, -hw + 22 + pw, -hh + 14, pw, 30, 8); c.stroke(); }
+        rr(c, -hw + 6, duvetY, w - 12, hh - 6 - duvetY, 8); c.stroke();
+        c.beginPath(); c.moveTo(-hw + 6, duvetY + 16); c.lineTo(hw - 6, duvetY + 16); c.stroke();
+        break;
+      }
+      // duvet with a soft wavy top edge
+      c.beginPath();
+      c.moveTo(-hw + 6, duvetY + 6);
+      c.bezierCurveTo(-w * 0.2, duvetY - 8, w * 0.05, duvetY + 16, hw - 6, duvetY + 2);
+      c.lineTo(hw - 6, hh - 14); c.quadraticCurveTo(hw - 6, hh - 6, hw - 14, hh - 6);
+      c.lineTo(-hw + 14, hh - 6); c.quadraticCurveTo(-hw + 6, hh - 6, -hw + 6, hh - 14);
+      c.closePath();
+      c.fillStyle = lg(0, duvetY, 0, hh, '#ece3d2', '#cfc2a8'); c.fill(); c.stroke();
+      c.strokeStyle = 'rgba(120,100,70,0.25)'; c.beginPath();                                            // fold crease
+      c.moveTo(-hw + 12, duvetY + 26); c.bezierCurveTo(-w * 0.15, duvetY + 18, w * 0.1, duvetY + 34, hw - 12, duvetY + 24);
+      c.stroke(); c.strokeStyle = RD.outline;
+      rr(c, -hw + 6, hh - 46, w - 12, 26, 6); paint(lg(0, hh - 46, 0, hh - 20, '#b98a6b', '#a5765a'));   // throw blanket
+      const pw = single ? w - 40 : (w - 48) / 2;                                                         // pillows
+      const px = single ? [-hw + 18] : [-hw + 18, -hw + 30 + pw];
+      for (let i = 0; i < px.length; i++) {
+        c.save(); c.translate(px[i] + pw / 2, -hh + 30); c.rotate(i === 0 ? -0.05 : 0.05);
+        rr(c, -pw / 2, -15, pw, 30, 10);
+        c.fillStyle = lg(0, -15, 0, 15, '#ffffff', '#e9e4d8'); c.fill(); c.stroke();
+        c.restore();
+      }
       break;
     }
     case 'wardrobe': {
-      shadow(true); rr(c, -hw, -hh, w, h, 4); paint('#b9a58a');
-      c.beginPath(); c.moveTo(-hw + 8, 0); c.lineTo(hw - 8, 0); c.stroke(); // hanging rail
-      c.beginPath();
-      for (let x = -hw + 20; x < hw - 12; x += 24) { c.moveTo(x, -8); c.lineTo(x, 8); }
-      c.stroke();
+      shadow(true); rr(c, -hw, -hh, w, h, 4); paint(lg(0, -hh, 0, hh, '#b6a186', '#9c8669'));
+      c.beginPath(); c.moveTo(0, -hh + 4); c.lineTo(0, hh - 4); c.stroke();                              // door seam
+      if (bp) {
+        c.beginPath();
+        for (let x = -hw + 20; x < hw - 12; x += 24) { c.moveTo(x, -8); c.lineTo(x, 8); }
+        c.stroke();
+      } else {
+        c.fillStyle = '#6e5a42';
+        for (const dx of [-7, 7]) { c.beginPath(); c.arc(dx, 0, 2.5, 0, 7); c.fill(); }                  // handles
+      }
       break;
     }
     case 'nightstand': {
-      shadow(true); rr(c, -hw, -hh, w, h, 6); paint(RD.wood1);
-      c.beginPath(); c.arc(0, 0, 4, 0, 7); paint('#e8e2d4');
+      shadow(true); rr(c, -hw, -hh, w, h, 6); paint(lg(-hw, -hh, hw, hh, '#b5926a', '#9a7852'));
+      if (bp) { c.beginPath(); c.arc(0, 0, 4, 0, 7); c.stroke(); break; }
+      c.beginPath(); c.arc(0, 0, Math.min(hw, hh) * 0.55, 0, 7);
+      c.fillStyle = 'rgba(255,244,200,0.5)'; c.fill();                                                   // lamp glow
+      c.beginPath(); c.arc(0, 0, Math.min(hw, hh) * 0.3, 0, 7); paint('#e9dfc8');                        // lamp shade
       break;
     }
     case 'desk': {
-      shadow(true); rr(c, -hw, -hh, w, h, 6); paint(RD.wood1);
-      rr(c, -hw + 10, -hh + 8, 40, h - 16, 4); paint('#d9d2c2');             // desk pad
+      shadow(true); rr(c, -hw, -hh, w, h, 6); paint(lg(0, -hh, 0, hh, '#b5926a', '#9d7c55'));
+      rr(c, -hw + 12, -hh + 10, 42, h - 20, 4); paint('#d9d2c2');                                        // desk pad
+      if (!bp) {
+        rr(c, 8, -13, 40, 26, 3); paint(lg(8, 0, 48, 0, '#3c4046', '#23262b'));                          // laptop
+        c.beginPath(); c.moveTo(28, -13); c.lineTo(28, 13);
+        c.strokeStyle = 'rgba(255,255,255,0.2)'; c.stroke(); c.strokeStyle = RD.outline;
+      }
       break;
     }
     case 'counter': {
-      shadow(true); rr(c, -hw, -hh, w, h, 4); paint('#e9e3d5');
+      shadow(true); rr(c, -hw, -hh, w, h, 4); paint(lg(0, -hh, 0, hh, '#efe9db', '#ddd5c2'));
+      if (!bp) {
+        c.strokeStyle = 'rgba(140,130,110,0.35)'; c.lineWidth = 1;
+        for (let i = 0; i < 4; i++) {                                                                    // marble veins
+          const x0 = -hw + rnd(i, it.x) * w;
+          c.beginPath(); c.moveTo(x0, -hh + 3);
+          c.bezierCurveTo(x0 + 18, -hh + h * 0.35, x0 - 14, -hh + h * 0.65, x0 + 8, hh - 3);
+          c.stroke();
+        }
+        c.lineWidth = 1.6; c.strokeStyle = RD.outline;
+      }
       c.beginPath(); c.moveTo(-hw + 4, hh - 8); c.lineTo(hw - 4, hh - 8); c.stroke();
       break;
     }
     case 'stove': {
-      rr(c, -hw, -hh, w, h, 4); paint('#3a3d42');
-      const o = Math.min(hw, hh) * 0.44;
+      rr(c, -hw, -hh, w, h, 5); paint(lg(-hw, -hh, hw, hh, '#3d4147', '#22252a'));
+      const o = Math.min(hw, hh) * 0.42, br = Math.min(hw, hh) * 0.27;
       for (const [dx, dy] of [[-o, -o], [o, -o], [-o, o], [o, o]]) {
-        c.beginPath(); c.arc(dx, dy, Math.min(hw, hh) * 0.3, 0, 7);
-        if (bp) c.stroke(); else { c.fillStyle = '#25272b'; c.fill(); c.strokeStyle = '#5c6066'; c.stroke(); c.strokeStyle = RD.outline; }
+        c.beginPath(); c.arc(dx, dy, br, 0, 7);
+        if (bp) { c.stroke(); continue; }
+        c.fillStyle = '#17191c'; c.fill();
+        c.strokeStyle = '#565b63'; c.stroke();
+        c.beginPath(); c.arc(dx, dy, br * 0.45, 0, 7); c.stroke();
+        c.strokeStyle = RD.outline;
       }
       break;
     }
     case 'sinkK': {
-      rr(c, -hw, -hh, w, h, 4); paint('#e9e3d5');
-      rr(c, -hw + 8, -hh + 12, w - 16, h - 20, 7); paint(RD.metal);
-      c.beginPath(); c.arc(0, -hh + 7, 3.5, 0, 7); paint('#9aa0a6');         // faucet
+      rr(c, -hw, -hh, w, h, 4); paint(lg(0, -hh, 0, hh, '#efe9db', '#ddd5c2'));
+      rr(c, -hw + 8, -hh + 13, w - 16, h - 21, 7); paint(lg(0, -hh + 13, 0, hh - 8, '#d3d8dc', '#aeb5bb'));
+      if (!bp) {
+        rr(c, -hw + 12, -hh + 17, w - 24, h - 29, 5);
+        c.strokeStyle = 'rgba(0,0,0,0.15)'; c.stroke(); c.strokeStyle = RD.outline;                       // basin depth
+      }
+      c.beginPath(); c.arc(0, -hh + 7, 3.5, 0, 7); paint('#8f979e');                                      // faucet
+      if (!bp) { c.beginPath(); c.moveTo(0, -hh + 7); c.lineTo(0, -hh + 16); c.stroke(); }
       break;
     }
     case 'fridge': {
-      shadow(true); rr(c, -hw, -hh, w, h, 8); paint(RD.appliance);
+      shadow(true); rr(c, -hw, -hh, w, h, 8); paint(lg(-hw, 0, hw, 0, '#e9edf0', '#c4cad0'));
       c.beginPath(); c.moveTo(0, -hh + 4); c.lineTo(0, hh - 4); c.stroke();
+      if (!bp) {
+        c.fillStyle = '#8b939b';
+        rr(c, -9, -hh + 8, 4, 18, 2); c.fill();                                                          // handles
+        rr(c, 5, -hh + 8, 4, 18, 2); c.fill();
+      }
       break;
     }
     case 'diningTable': {
-      shadow(true); rr(c, -hw, -hh, w, h, 14); paint(RD.wood1);
-      rr(c, -20, -12, 40, 24, 8); paint('#d9d2c2');                          // centrepiece
+      shadow(true); rr(c, -hw, -hh, w, h, 14); paint(lg(-hw, -hh, hw, hh, '#b5926a', '#997752'));
+      if (bp) { rr(c, -20, -12, 40, 24, 8); c.stroke(); break; }
+      c.strokeStyle = 'rgba(70,45,20,0.15)'; c.beginPath();                                              // wood grain
+      for (let i = 1; i < 5; i++) { const x = -hw + w * i / 5; c.moveTo(x, -hh + 6); c.lineTo(x, hh - 6); }
+      c.stroke(); c.strokeStyle = RD.outline;
+      rr(c, -hw + 10, -14, w - 20, 28, 6); paint('rgba(240,234,220,0.55)');                              // table runner
+      c.beginPath(); c.arc(0, 0, 11, 0, 7); paint('#8a9a6b');                                            // centrepiece
+      c.beginPath(); c.arc(-2, -2, 4, 0, 7); c.fillStyle = 'rgba(255,255,255,0.35)'; c.fill();
       break;
     }
     case 'chair': {
-      shadow(true); rr(c, -hw, -hh + 10, w, h - 10, 9); paint(RD.fabricLight); // seat
-      rr(c, -hw, -hh, w, 12, 5); paint(RD.wood2);                            // back rest
+      shadow(true); rr(c, -hw, -hh + 10, w, h - 10, 9); paint(lg(0, -hh + 10, 0, hh, '#d3c4a8', '#b7a482'));
+      rr(c, -hw, -hh, w, 12, 5); paint(lg(0, -hh, 0, -hh + 12, '#8a6f50', '#75593c'));
       break;
     }
     case 'toilet': {
-      shadow(true); rr(c, -hw, -hh, w, 20, 5); paint(RD.white);              // cistern
-      c.beginPath(); c.ellipse(0, 8, hw - 3, hh - 14, 0, 0, 7); paint(RD.white);
-      c.beginPath(); c.ellipse(0, 8, hw - 10, hh - 21, 0, 0, 7); c.stroke();
+      shadow(true); rr(c, -hw, -hh, w, 20, 5); paint(lg(0, -hh, 0, -hh + 20, '#ffffff', '#e4e6e6'));     // cistern
+      if (!bp) { rr(c, -8, -hh + 6, 16, 7, 3); c.fillStyle = '#cfd4d6'; c.fill(); }                       // flush button
+      c.beginPath(); c.ellipse(0, 9, hw - 3, hh - 15, 0, 0, 7); paint(lg(0, -8, 0, hh, '#ffffff', '#dfe3e4'));
+      c.beginPath(); c.ellipse(0, 10, hw - 10, hh - 22, 0, 0, 7);
+      if (bp) c.stroke(); else { c.fillStyle = '#eef1f2'; c.fill(); c.stroke(); }
       break;
     }
     case 'sinkB': {
-      shadow(true); rr(c, -hw, -hh, w, h, 8); paint(RD.white);
-      c.beginPath(); c.ellipse(0, 2, hw - 9, hh - 11, 0, 0, 7); paint(bp ? 'transparent' : '#dde4e8');
-      c.beginPath(); c.arc(0, -hh + 6, 3, 0, 7); paint('#9aa0a6');
+      shadow(true); rr(c, -hw, -hh, w, h, 9); paint(lg(0, -hh, 0, hh, '#ffffff', '#e6e9e9'));
+      c.beginPath(); c.ellipse(0, 3, hw - 9, hh - 12, 0, 0, 7);
+      paint(bp ? 'transparent' : lg(0, -hh + 8, 0, hh - 6, '#e2e9ec', '#c5d0d5'));
+      c.beginPath(); c.arc(0, -hh + 7, 3, 0, 7); paint('#8f979e');
       break;
     }
     case 'shower': {
@@ -272,41 +388,59 @@ function drawItem(c, it, mode) {
       if (bp) {
         c.stroke();
         c.beginPath(); c.moveTo(-hw, -hh); c.lineTo(hw, hh); c.moveTo(hw, -hh); c.lineTo(-hw, hh); c.stroke();
-      } else {
-        c.fillStyle = '#d7ebec'; c.fill(); c.stroke();
-        c.strokeStyle = 'rgba(255,255,255,0.6)'; c.beginPath();
-        for (let x = -hw + w / 4; x < hw; x += w / 4) { c.moveTo(x, -hh + 3); c.lineTo(x, hh - 3); }
-        for (let y = -hh + h / 4; y < hh; y += h / 4) { c.moveTo(-hw + 3, y); c.lineTo(hw - 3, y); }
-        c.stroke(); c.strokeStyle = RD.outline;
-        c.beginPath(); c.arc(0, 0, 5, 0, 7); c.fillStyle = RD.metal; c.fill(); c.stroke();
+        break;
       }
+      c.fillStyle = '#d9ecec'; c.fill(); c.stroke();
+      const ts = Math.min(w, h) / 6;                                                                     // mosaic floor
+      for (let j = 0; j < 6; j++) for (let i = 0; i < 6; i++) {
+        c.fillStyle = `hsl(180, 26%, ${84 + (rnd(i, j + 20) - 0.5) * 6}%)`;
+        c.fillRect(-hw + i * ts + 1, -hh + j * ts + 1, ts - 2, ts - 2);
+      }
+      c.beginPath(); c.arc(0, 0, 6, 0, 7); c.fillStyle = '#aeb6bc'; c.fill(); c.stroke();                // drain
+      c.beginPath(); c.arc(0, 0, 2.5, 0, 7); c.fillStyle = '#7c848a'; c.fill();
+      c.fillStyle = 'rgba(255,255,255,0.55)';                                                            // glass walls
+      c.fillRect(-hw, hh - 5, w, 5); c.fillRect(hw - 5, -hh, 5, h);
+      c.beginPath(); c.arc(-hw + 14, -hh + 14, 7, 0, 7); c.fillStyle = '#c3c9ce'; c.fill(); c.stroke();  // shower head
       break;
     }
     case 'bathtub': {
-      shadow(true); rr(c, -hw, -hh, w, h, 18); paint(RD.white);
-      rr(c, -hw + 9, -hh + 9, w - 18, h - 18, 14); paint(bp ? 'transparent' : '#e4eaee');
-      c.beginPath(); c.arc(-hw + 26, 0, 4, 0, 7); paint('#9aa0a6');
+      shadow(true); rr(c, -hw, -hh, w, h, 20); paint(lg(0, -hh, 0, hh, '#ffffff', '#e3e7e8'));
+      rr(c, -hw + 9, -hh + 9, w - 18, h - 18, 15);
+      paint(bp ? 'transparent' : lg(0, -hh + 9, 0, hh - 9, '#e8eef0', '#ccd7db'));
+      c.beginPath(); c.arc(-hw + 24, 0, 4, 0, 7); paint('#9aa0a6');                                      // faucet
+      if (!bp) {
+        c.fillStyle = '#b7bdc2';
+        for (const dy of [-11, 11]) { c.beginPath(); c.arc(-hw + 24, dy, 2.5, 0, 7); c.fill(); }         // taps
+      }
       break;
     }
     case 'washer': {
-      shadow(true); rr(c, -hw, -hh, w, h, 6); paint(RD.appliance);
-      c.beginPath(); c.arc(0, 3, Math.min(hw, hh) * 0.55, 0, 7); paint(bp ? 'transparent' : '#aeb8c2');
-      c.beginPath(); c.arc(0, 3, Math.min(hw, hh) * 0.32, 0, 7); paint(bp ? 'transparent' : '#7c8894');
-      c.beginPath(); c.moveTo(-hw + 5, -hh + 9); c.lineTo(hw - 5, -hh + 9); c.stroke();
+      shadow(true); rr(c, -hw, -hh, w, h, 6); paint(lg(0, -hh, 0, hh, '#f2f4f5', '#d8dcdf'));
+      c.beginPath(); c.moveTo(-hw + 5, -hh + 10); c.lineTo(hw - 5, -hh + 10); c.stroke();                // control panel
+      if (!bp) { c.beginPath(); c.arc(hw - 13, -hh + 5.5, 2.5, 0, 7); c.fillStyle = '#8b939b'; c.fill(); }
+      const dr = Math.min(hw, hh) * 0.55;
+      c.beginPath(); c.arc(0, 4, dr, 0, 7);
+      paint(bp ? 'transparent' : lg(-dr, 4 - dr, dr, 4 + dr, '#c3ccd3', '#98a3ac'));                     // door ring
+      c.beginPath(); c.arc(0, 4, dr * 0.6, 0, 7);
+      paint(bp ? 'transparent' : lg(0, 4 - dr, 0, 4 + dr, '#5c666f', '#39424a'));                        // drum glass
+      if (!bp) {
+        c.beginPath(); c.arc(-dr * 0.25, 4 - dr * 0.25, dr * 0.2, 0, 7);
+        c.fillStyle = 'rgba(255,255,255,0.4)'; c.fill();                                                 // glass glint
+      }
       break;
     }
     /* -------- wall-mounted -------- */
     case 'door': {
       c.fillStyle = bp ? BP.bg : '#efe8da';
-      c.fillRect(-hw, -WALL / 2 - 2, w, WALL + 4);                            // cut the wall
+      c.fillRect(-hw, -WALL / 2 - 2, w, WALL + 4);                                                       // cut the wall
       if (bp) {
-        c.beginPath(); c.moveTo(-hw, 0); c.lineTo(-hw, w); c.stroke();       // leaf
-        c.beginPath(); c.arc(-hw, 0, w, 0, Math.PI / 2); c.stroke();         // swing
+        c.beginPath(); c.moveTo(-hw, 0); c.lineTo(-hw, w); c.stroke();                                   // leaf
+        c.beginPath(); c.arc(-hw, 0, w, 0, Math.PI / 2); c.stroke();                                     // swing
       } else {
         c.strokeStyle = 'rgba(70,58,44,0.3)';
         c.beginPath(); c.arc(-hw, 0, w, 0, Math.PI / 2); c.stroke();
         c.strokeStyle = RD.outline;
-        rr(c, -hw - 2, 0, 5, w, 2); paint(RD.wood1);                          // leaf
+        rr(c, -hw - 2, 0, 5, w, 2); paint(lg(-hw - 2, 0, -hw + 3, 0, '#c2a273', '#a2825a'));             // leaf
       }
       break;
     }
@@ -327,8 +461,10 @@ function drawItem(c, it, mode) {
         c.stroke();
       } else {
         c.fillStyle = RD.wallFill; c.fillRect(-hw, -WALL / 2 - 1, w, WALL + 2);
-        rr(c, -hw, -4, w, 8, 2); c.fillStyle = RD.glass; c.fill(); c.stroke();
-        c.beginPath(); c.moveTo(-hw, 0); c.lineTo(hw, 0); c.strokeStyle = 'rgba(255,255,255,0.7)'; c.stroke();
+        rr(c, -hw, -4, w, 8, 2);
+        c.fillStyle = lg(0, -4, 0, 4, '#d8ecf5', '#a9cde0'); c.fill(); c.stroke();                       // glass
+        c.beginPath(); c.moveTo(-hw, 0); c.lineTo(hw, 0);
+        c.strokeStyle = 'rgba(255,255,255,0.7)'; c.stroke();
       }
       break;
     }
@@ -346,27 +482,55 @@ function drawFloor(c, room, mode) {
   const bp = mode === 'blueprint';
   if (bp) { c.fillStyle = BP.floor; c.fillRect(room.x, room.y, room.w, room.h); return; }
 
-  const base = room.floor === 'tile' ? RD.tile : room.floor === 'stone' ? RD.stone : RD.wood;
-  c.fillStyle = base;
-  c.fillRect(room.x, room.y, room.w, room.h);
-
   c.save();
   c.beginPath(); c.rect(room.x, room.y, room.w, room.h); c.clip();
-  c.lineWidth = 1.3;
-  c.beginPath();
+
   if (room.floor === 'tile') {
-    c.strokeStyle = RD.tileLine;
-    for (let x = room.x; x <= room.x + room.w; x += 30) { c.moveTo(x, room.y); c.lineTo(x, room.y + room.h); }
-    for (let y = room.y; y <= room.y + room.h; y += 30) { c.moveTo(room.x, y); c.lineTo(room.x + room.w, y); }
+    c.fillStyle = '#b9d6d2'; c.fillRect(room.x, room.y, room.w, room.h);         // grout
+    const s = 30;
+    for (let y = room.y, j = 0; y < room.y + room.h; y += s, j++)
+      for (let x = room.x, i = 0; x < room.x + room.w; x += s, i++) {
+        c.fillStyle = `hsl(172, 28%, ${80 + (rnd(i, j) - 0.5) * 6}%)`;
+        c.fillRect(x, y, s - 1.5, s - 1.5);
+      }
   } else if (room.floor === 'stone') {
-    c.strokeStyle = RD.stoneLine;
-    for (let x = room.x; x <= room.x + room.w; x += 45) { c.moveTo(x, room.y); c.lineTo(x, room.y + room.h); }
-    for (let y = room.y; y <= room.y + room.h; y += 45) { c.moveTo(room.x, y); c.lineTo(room.x + room.w, y); }
+    c.fillStyle = '#c8c0ae'; c.fillRect(room.x, room.y, room.w, room.h);
+    const s = 45;
+    for (let y = room.y, j = 0; y < room.y + room.h; y += s, j++)                // running-bond stone
+      for (let x = room.x - (j % 2) * s / 2, i = 0; x < room.x + room.w; x += s, i++) {
+        c.fillStyle = `hsl(40, 18%, ${82 + (rnd(i, j + 50) - 0.5) * 7}%)`;
+        c.fillRect(x, y, s - 1.5, s - 1.5);
+      }
   } else {
-    c.strokeStyle = RD.woodLine;
-    for (let y = room.y; y <= room.y + room.h; y += 19) { c.moveTo(room.x, y); c.lineTo(room.x + room.w, y); }
+    c.fillStyle = '#b6935f'; c.fillRect(room.x, room.y, room.w, room.h);         // plank gaps
+    const rh = 19;
+    for (let y = room.y, j = 0; y < room.y + room.h; y += rh, j++) {             // staggered planks
+      let x = room.x - rnd(j, 3) * 90, i = 0;
+      while (x < room.x + room.w) {
+        const len = 95 + rnd(i, j) * 70;
+        c.fillStyle = `hsl(33, 42%, ${64 + (rnd(i + 7, j) - 0.5) * 12}%)`;
+        c.fillRect(x + 1, y + 1, len - 2, rh - 2);
+        x += len; i++;
+      }
+    }
   }
-  c.stroke();
+
+  // ambient occlusion where the floor meets the walls
+  const ao = 26, col = 'rgba(90,65,35,0.18)', tr = 'rgba(90,65,35,0)';
+  let g;
+  g = c.createLinearGradient(room.x, 0, room.x + ao, 0);
+  g.addColorStop(0, col); g.addColorStop(1, tr);
+  c.fillStyle = g; c.fillRect(room.x, room.y, ao, room.h);
+  g = c.createLinearGradient(room.x + room.w, 0, room.x + room.w - ao, 0);
+  g.addColorStop(0, col); g.addColorStop(1, tr);
+  c.fillStyle = g; c.fillRect(room.x + room.w - ao, room.y, ao, room.h);
+  g = c.createLinearGradient(0, room.y, 0, room.y + ao);
+  g.addColorStop(0, col); g.addColorStop(1, tr);
+  c.fillStyle = g; c.fillRect(room.x, room.y, room.w, ao);
+  g = c.createLinearGradient(0, room.y + room.h, 0, room.y + room.h - ao);
+  g.addColorStop(0, col); g.addColorStop(1, tr);
+  c.fillStyle = g; c.fillRect(room.x, room.y + room.h - ao, room.w, ao);
+
   c.restore();
 }
 
@@ -376,15 +540,36 @@ function drawWalls(c, mode) {
     if (bp) {
       c.strokeStyle = BP.wall; c.lineWidth = WALL;
       c.strokeRect(r.x, r.y, r.w, r.h);
-      c.strokeStyle = BP.bg; c.lineWidth = WALL - 7;                          // hollow double-line walls
+      c.strokeStyle = BP.bg; c.lineWidth = WALL - 7;                              // hollow double-line walls
       c.strokeRect(r.x, r.y, r.w, r.h);
     } else {
-      c.strokeStyle = RD.wallEdge; c.lineWidth = WALL + 3;
+      c.save();
+      c.shadowColor = 'rgba(60,45,25,0.45)'; c.shadowBlur = 14; c.shadowOffsetY = 4;
+      c.strokeStyle = RD.wallEdge; c.lineWidth = WALL + 3;                        // walls cast onto the floor
       c.strokeRect(r.x, r.y, r.w, r.h);
+      c.restore();
       c.strokeStyle = RD.wallFill; c.lineWidth = WALL;
       c.strokeRect(r.x, r.y, r.w, r.h);
     }
   }
+}
+
+function drawSunlight(c) {
+  if (!state.rooms.length) return;
+  c.save();
+  c.beginPath();
+  for (const r of state.rooms) c.rect(r.x, r.y, r.w, r.h);
+  c.clip();
+  for (const it of state.items) {
+    if (it.type !== 'window') continue;
+    const reach = it.w * 1.6;
+    const g = c.createRadialGradient(it.x, it.y, 8, it.x, it.y, reach);
+    g.addColorStop(0, 'rgba(255,250,225,0.5)');
+    g.addColorStop(1, 'rgba(255,250,225,0)');
+    c.fillStyle = g;
+    c.beginPath(); c.arc(it.x, it.y, reach, 0, 7); c.fill();
+  }
+  c.restore();
 }
 
 function drawLabels(c, mode) {
@@ -417,6 +602,7 @@ function drawGrid(c) {
 function drawWorld(c, mode) {
   if (mode === 'blueprint') drawGrid(c);
   for (const r of state.rooms) drawFloor(c, r, mode);
+  if (mode === 'render') drawSunlight(c);
   drawWalls(c, mode);
   const sorted = [...state.items].sort((a, b) => (TYPES[a.type]?.z ?? 2) - (TYPES[b.type]?.z ?? 2));
   for (const it of sorted) if (TYPES[it.type]?.wall) drawItem(c, it, mode);
@@ -432,6 +618,14 @@ function drawPass(mode, px0, px1) {
   ctx.fillRect(px0, 0, px1 - px0, ch);
   ctx.setTransform(dpr * view.scale, 0, 0, dpr * view.scale, -view.x * view.scale * dpr, -view.y * view.scale * dpr);
   drawWorld(ctx, mode);
+  if (mode === 'render') {
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);                                       // soft vignette
+    const g = ctx.createRadialGradient(cw / 2, ch / 2, Math.min(cw, ch) * 0.3, cw / 2, ch / 2, Math.max(cw, ch) * 0.8);
+    g.addColorStop(0, 'rgba(0,0,0,0)');
+    g.addColorStop(1, 'rgba(75,55,30,0.16)');
+    ctx.fillStyle = g;
+    ctx.fillRect(px0, 0, px1 - px0, ch);
+  }
   ctx.restore();
 }
 
