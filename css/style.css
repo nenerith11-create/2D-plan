@@ -148,6 +148,16 @@ main { flex: 1; display: flex; min-height: 0; }
   font-size: 13px;
   padding: 6px 8px;
 }
+.swatches { display: flex; flex-wrap: wrap; gap: 6px; }
+.swatch {
+  width: 40px; height: 30px; padding: 0;
+  border: 2px solid var(--border); border-radius: 7px;
+  background: var(--panel-2); cursor: pointer; overflow: hidden;
+}
+.swatch canvas { display: block; width: 100%; height: 100%; }
+.swatch.round { width: 26px; height: 26px; border-radius: 50%; }
+.swatch:hover { border-color: #3d4453; }
+.swatch.sel { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(255, 90, 118, 0.3); }
 .field-row { display: flex; gap: 8px; }
 .field-row .field { flex: 1; }
 .rot-row { display: flex; gap: 6px; }
