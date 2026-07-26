@@ -54,8 +54,13 @@
         <input type="password" id="autoKey" placeholder="sk-ant-...">
         <label for="autoBase">API base URL (optional)</label>
         <input type="url" id="autoBase" placeholder="https://api.anthropic.com">
+        <label for="autoAuth">Auth header</label>
+        <select id="autoAuth">
+          <option value="x-api-key">x-api-key (Anthropic default)</option>
+          <option value="bearer">Authorization: Bearer (gateways)</option>
+        </select>
         <button id="autoKeySave">Save &amp; run</button>
-        <p>Stored only in this browser and sent only to the API endpoint above. Leave the base URL empty for api.anthropic.com, or point it at your own proxy/gateway (the key is optional if your proxy injects it).</p>
+        <p>Stored only in this browser and sent only to the endpoint above. The base URL accepts either a plain base (…/v1/messages gets appended) or your gateway's <b>full</b> messages endpoint — anything ending in /messages is used as-is. The key is optional if your gateway injects it.</p>
       </div>
       <p id="autoStatus"></p>
     </div>
