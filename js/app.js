@@ -1130,11 +1130,8 @@ function clearRefImage() {
   syncRefPanel();
 }
 
-document.getElementById('btnUpload').addEventListener('click', () => fileInput.click());
-fileInput.addEventListener('change', () => {
-  const file = fileInput.files && fileInput.files[0];
-  fileInput.value = '';
-  if (!file) return;
+function handleImageFile(file) {
+  if (!file || !file.type || !file.type.startsWith('image/')) return;
   const reader = new FileReader();
   reader.onload = () => {
     const img = new Image();
@@ -1160,6 +1157,33 @@ fileInput.addEventListener('change', () => {
     img.src = reader.result;
   };
   reader.readAsDataURL(file);
+}
+
+fileInput.addEventListener('change', () => {
+  const file = fileInput.files && fileInput.files[0];
+  fileInput.value = '';
+  handleImageFile(file);
+});
+
+// drag & drop an image anywhere onto the canvas
+const canvasWrap = document.getElementById('canvas-wrap');
+canvasWrap.addEventListener('dragover', e => { e.preventDefault(); canvasWrap.classList.add('dropping'); });
+canvasWrap.addEventListener('dragleave', e => {
+  if (!canvasWrap.contains(e.relatedTarget)) canvasWrap.classList.remove('dropping');
+});
+canvasWrap.addEventListener('drop', e => {
+  e.preventDefault();
+  canvasWrap.classList.remove('dropping');
+  handleImageFile(e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0]);
+});
+
+// paste an image (Ctrl/Cmd+V) from the clipboard
+window.addEventListener('paste', e => {
+  const items = e.clipboardData && e.clipboardData.items;
+  if (!items) return;
+  for (const item of items) {
+    if (item.type && item.type.startsWith('image/')) { handleImageFile(item.getAsFile()); break; }
+  }
 });
 
 document.getElementById('refOpacity').addEventListener('input', e => {
